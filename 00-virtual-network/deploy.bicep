@@ -38,7 +38,7 @@ resource ResourceGroupDeployment 'Microsoft.Resources/resourceGroups@2021-04-01'
 //////////////////////////////////////
 module VirtualNetworkWithSubNets 'virtualNetworkModule.bicep' = {
   scope: ResourceGroupDeployment
-  name: 'ComponentGovernanceVirtualNetwork${epochTime}'
+  name: 'FullCoceVirtualNetwork${epochTime}'
   params: {
     virtualNetwork: virtualNetwork
     location: location
