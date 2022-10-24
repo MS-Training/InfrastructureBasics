@@ -1,0 +1,203 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "location": {
+            "value": "eastus2"
+        },
+        "resourceGroupName": {
+            "value": "rg-development-fullcode-eastus2"
+        },
+        "managedBy": {
+            "value": "Edward Rush"
+        },
+        "standardTags": {
+            "value": {
+                "Environment": "Development",
+                "Application": "DevelopmentApplications"
+            }
+        },
+        "virtualNetwork": {
+            "value": {
+                "Properties": {
+                    "name": "vnFullCode",
+                    "extendedLocation": {},
+                    "addressSpaces": [
+                        "10.0.0.0/16"
+                    ],
+                    "ddosProtectionPlanEnabled": false,
+                    "defaultServiceEndpoints": [
+                        {
+                            "service": "Microsoft.AzureActiveDirectory"
+                        },
+                        {
+                            "service": "Microsoft.AzureCosmosDB"
+                        },
+                        {
+                            "service": "Microsoft.CognitiveServices"
+                        },
+                        {
+                            "service": "Microsoft.ContainerRegistry"
+                        },
+                        {
+                            "service": "Microsoft.EventHub"
+                        },
+                        {
+                            "service": "Microsoft.KeyVault"
+                        },
+                        {
+                            "service": "Microsoft.ServiceBus"
+                        },
+                        {
+                            "service": "Microsoft.Sql"
+                        },
+                        {
+                            "service": "Microsoft.Storage"
+                        },
+                        {
+                            "service": "Microsoft.Web"
+                        }
+                    ],
+                    "subNets": [
+                        {
+                            "name": "Subnet00",
+                            "addressRange": "10.0.0.0/22",
+                            "networkSecurityGroup": {
+                                "comment": "The network security group name should correspond to the Subnet that will be assigned to its usage. Example Subnet00 would have an nsg called nsgSubnet00",
+                                "name": "nsgSubnet00",
+                                "RuleList": [
+                                    {
+                                        "name": "BlockAll",
+                                        "description": "block all traffic except what we've explicitly allow",
+                                        "direction": "Inbound",
+                                        "priority": 4095,
+                                        "sourceAddressPrefix": "*",
+                                        "destinationAddressPrefix": "*",
+                                        "sourcePortRange": "*",
+                                        "destinationPortRange": "3389",
+                                        "access": "Deny",
+                                        "protocol": "*"
+                                    },
+                                    {
+                                        "name": "VNetRDP",
+                                        "description": "Allow RDP within the net",
+                                        "direction": "Inbound",
+                                        "priority": 3960,
+                                        "sourceAddressPrefix": "*",
+                                        "destinationAddressPrefix": "*",
+                                        "sourcePortRange": "*",
+                                        "destinationPortRange": "3389-4500",
+                                        "access": "Deny",
+                                        "protocol": "*"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "Subnet01",
+                            "addressRange": "10.0.4.0/22",
+                            "networkSecurityGroup": {
+                                "comment": "The network security group name should correspond to the Subnet that will be assigned to its usage. Example Subnet00 would have an nsg called nsgSubnet00",
+                                "name": "nsgSubnet01",
+                                "RuleList": [
+                                    {
+                                        "name": "BlockAll",
+                                        "description": "block all traffic except what we've explicitly allow",
+                                        "direction": "Inbound",
+                                        "priority": 4095,
+                                        "sourceAddressPrefix": "*",
+                                        "destinationAddressPrefix": "*",
+                                        "sourcePortRange": "*",
+                                        "destinationPortRange": "3389",
+                                        "access": "Deny",
+                                        "protocol": "*"
+                                    },
+                                    {
+                                        "name": "VNetRDP",
+                                        "description": "Allow RDP within the net",
+                                        "direction": "Inbound",
+                                        "priority": 3960,
+                                        "sourceAddressPrefix": "*",
+                                        "destinationAddressPrefix": "*",
+                                        "sourcePortRange": "*",
+                                        "destinationPortRange": "3389-4500",
+                                        "access": "Deny",
+                                        "protocol": "*"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "Subnet02",
+                            "addressRange": "10.0.8.0/22",
+                            "networkSecurityGroup": {
+                                "comment": "The network security group name should correspond to the Subnet that will be assigned to its usage. Example Subnet00 would have an nsg called nsgSubnet00",
+                                "name": "nsgSubnet02",
+                                "RuleList": [
+                                    {
+                                        "name": "BlockAll",
+                                        "description": "block all traffic except what we've explicitly allow",
+                                        "direction": "Inbound",
+                                        "priority": 4095,
+                                        "sourceAddressPrefix": "*",
+                                        "destinationAddressPrefix": "*",
+                                        "sourcePortRange": "*",
+                                        "destinationPortRange": "3389",
+                                        "access": "Deny",
+                                        "protocol": "*"
+                                    },
+                                    {
+                                        "name": "VNetRDP",
+                                        "description": "Allow RDP within the net",
+                                        "direction": "Inbound",
+                                        "priority": 3960,
+                                        "sourceAddressPrefix": "*",
+                                        "destinationAddressPrefix": "*",
+                                        "sourcePortRange": "*",
+                                        "destinationPortRange": "3389-4500",
+                                        "access": "Deny",
+                                        "protocol": "*"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "Subnet03",
+                            "addressRange": "10.0.12.0/22",
+                            "networkSecurityGroup": {
+                                "comment": "The network security group name should correspond to the Subnet that will be assigned to its usage. Example Subnet00 would have an nsg called nsgSubnet00",
+                                "name": "nsgSubnet03",
+                                "RuleList": [
+                                    {
+                                        "name": "BlockAll",
+                                        "description": "block all traffic except what we've explicitly allow",
+                                        "direction": "Inbound",
+                                        "priority": 4095,
+                                        "sourceAddressPrefix": "*",
+                                        "destinationAddressPrefix": "*",
+                                        "sourcePortRange": "*",
+                                        "destinationPortRange": "3389",
+                                        "access": "Deny",
+                                        "protocol": "*"
+                                    },
+                                    {
+                                        "name": "VNetRDP",
+                                        "description": "Allow RDP within the net",
+                                        "direction": "Inbound",
+                                        "priority": 3960,
+                                        "sourceAddressPrefix": "*",
+                                        "destinationAddressPrefix": "*",
+                                        "sourcePortRange": "*",
+                                        "destinationPortRange": "3389-4500",
+                                        "access": "Deny",
+                                        "protocol": "*"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    }
+}
