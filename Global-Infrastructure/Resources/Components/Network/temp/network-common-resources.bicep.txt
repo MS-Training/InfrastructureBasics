@@ -1,0 +1,476 @@
+@description('This is coming from the parameter File under Parameters')
+param settings secureObject
+
+@description('This is coming from the parameter File under Parameters')
+param resourceNames object
+
+@description('Current UTC date')
+param date string = utcNow()
+
+var virtualNetworkName = toLower('${resourceNames.vnetBaseName}${settings.commonNetwork.tag}')
+var nspName = toLower('${resourceNames.nspBaseName}${settings.common.tag}')
+var frontDoorWafPolicyName = toLower('${resourceNames.fdwafPolicyBaseName}${settings.common.tag}')
+var cdnProfileName = toLower('${resourceNames.cdnProfileBaseName}${settings.common.tag}')
+var natGatewayName = toLower('${resourceNames.natGatewayBaseName}${settings.common.tag}')
+var privateDNSZoneList = [
+  'privatelink.azurewebsites.net'
+  'privatelink.vaultcore.azure.net'
+  'privatelink.documents.azure.com'
+  'privatelink.blob.core.windows.net'
+  'privatelink.file.core.windows.net'
+  'privatelink.queue.core.windows.net'
+  'privatelink.table.core.windows.net'
+  'privatelink.database.windows.net'
+  'privatelink.cognitiveservices.azure.com'
+  'privatelink.servicebus.windows.net'
+]
+var standardNsgRules = [
+  {
+    name: 'NRMS-Rule-105'
+    properties: {
+      description: 'DO NOT DELETE - Will result in ICM Sev 2 - Azure Core Security, see aka.ms/cainsgpolicy'
+      protocol: '*'
+      sourcePortRange: '*'
+      sourceAddressPrefix: 'Internet'
+      destinationAddressPrefix: '*'
+      access: 'Deny'
+      priority: 105
+      direction: 'Inbound'
+      sourcePortRanges: []
+      destinationPortRanges: [
+        '1433'
+        '1434'
+        '3306'
+        '4333'
+        '5432'
+        '6379'
+        '7000'
+        '7001'
+        '7199'
+        '9042'
+        '9160'
+        '9300'
+        '16379'
+        '26379'
+        '27017'
+      ]
+      sourceAddressPrefixes: []
+      destinationAddressPrefixes: []
+    }
+  }
+  {
+    name: 'NRMS-Rule-104'
+    properties: {
+      description: 'Created by Azure Core Security managed policy, rule can be deleted but do not change source ips, please see aka.ms/cainsgpolicy'
+      protocol: '*'
+      sourcePortRange: '*'
+      destinationPortRange: '*'
+      sourceAddressPrefix: 'CorpNetSaw'
+      destinationAddressPrefix: '*'
+      access: 'Allow'
+      priority: 104
+      direction: 'Inbound'
+      sourcePortRanges: []
+      destinationPortRanges: []
+      sourceAddressPrefixes: []
+      destinationAddressPrefixes: []
+    }
+  }
+  {
+    name: 'NRMS-Rule-101'
+    properties: {
+      description: 'Created by Azure Core Security managed policy, placeholder you can delete, please see aka.ms/cainsgpolicy'
+      protocol: 'Tcp'
+      sourcePortRange: '*'
+      destinationPortRange: '443'
+      sourceAddressPrefix: 'VirtualNetwork'
+      destinationAddressPrefix: '*'
+      access: 'Allow'
+      priority: 101
+      direction: 'Inbound'
+      sourcePortRanges: []
+      destinationPortRanges: []
+      sourceAddressPrefixes: []
+      destinationAddressPrefixes: []
+    }
+  }
+  {
+    name: 'NRMS-Rule-103'
+    properties: {
+      description: 'Created by Azure Core Security managed policy, rule can be deleted but do not change source ips, please see aka.ms/cainsgpolicy'
+      protocol: '*'
+      sourcePortRange: '*'
+      destinationPortRange: '*'
+      sourceAddressPrefix: 'VirtualNetwork'
+      destinationAddressPrefix: '*'
+      access: 'Allow'
+      priority: 103
+      direction: 'Inbound'
+      sourcePortRanges: []
+      destinationPortRanges: []
+      sourceAddressPrefixes: []
+      destinationAddressPrefixes: []
+    }
+  }
+  {
+    name: 'NRMS-Rule-106'
+    properties: {
+      description: 'DO NOT DELETE - Will result in ICM Sev 2 - Azure Core Security, see aka.ms/cainsgpolicy'
+      protocol: 'Tcp'
+      sourcePortRange: '*'
+      sourceAddressPrefix: 'Internet'
+      destinationAddressPrefix: '*'
+      access: 'Deny'
+      priority: 106
+      direction: 'Inbound'
+      sourcePortRanges: []
+      destinationPortRanges: [
+        '22'
+        '3389'
+      ]
+      sourceAddressPrefixes: []
+      destinationAddressPrefixes: []
+    }
+  }
+  {
+    name: 'NRMS-Rule-108'
+    properties: {
+      description: 'DO NOT DELETE - Will result in ICM Sev 2 - Azure Core Security, see aka.ms/cainsgpolicy'
+      protocol: '*'
+      sourcePortRange: '*'
+      sourceAddressPrefix: 'Internet'
+      destinationAddressPrefix: '*'
+      access: 'Deny'
+      priority: 108
+      direction: 'Inbound'
+      sourcePortRanges: []
+      destinationPortRanges: [
+        '13'
+        '17'
+        '19'
+        '53'
+        '69'
+        '111'
+        '123'
+        '512'
+        '514'
+        '593'
+        '873'
+        '1900'
+        '5353'
+        '11211'
+      ]
+      sourceAddressPrefixes: []
+      destinationAddressPrefixes: []
+    }
+  }
+  {
+    name: 'NRMS-Rule-107'
+    properties: {
+      description: 'DO NOT DELETE - Will result in ICM Sev 2 - Azure Core Security, see aka.ms/cainsgpolicy'
+      protocol: 'Tcp'
+      sourcePortRange: '*'
+      sourceAddressPrefix: 'Internet'
+      destinationAddressPrefix: '*'
+      access: 'Deny'
+      priority: 107
+      direction: 'Inbound'
+      sourcePortRanges: []
+      destinationPortRanges: [
+        '23'
+        '135'
+        '445'
+        '5985'
+        '5986'
+      ]
+      sourceAddressPrefixes: []
+      destinationAddressPrefixes: []
+    }
+  }
+  {
+    name: 'NRMS-Rule-109'
+    properties: {
+      description: 'DO NOT DELETE - Will result in ICM Sev 2 - Azure Core Security, see aka.ms/cainsgpolicy'
+      protocol: '*'
+      sourcePortRange: '*'
+      sourceAddressPrefix: 'Internet'
+      destinationAddressPrefix: '*'
+      access: 'Deny'
+      priority: 109
+      direction: 'Inbound'
+      sourcePortRanges: []
+      destinationPortRanges: [
+        '119'
+        '137'
+        '138'
+        '139'
+        '161'
+        '162'
+        '389'
+        '636'
+        '2049'
+        '2301'
+        '2381'
+        '3268'
+        '5800'
+        '5900'
+      ]
+      sourceAddressPrefixes: []
+      destinationAddressPrefixes: []
+    }
+  }
+]
+var nspResourceAssociations = [
+  {
+    associationName: '${resourceNames.keyVaultBaseName}${settings.common.tag}-nsplink'
+    privateLinkResourceId: '/subscriptions/${subscription().subscriptionId}/resourceGroups/${resourceNames.commonResourceGroupName}/providers/Microsoft.KeyVault/vaults/${resourceNames.keyVaultBaseName}${settings.common.tag}'
+  }
+  {
+    associationName: '${resourceNames.diagnosysStorageAccountName}-nsplink'
+    privateLinkResourceId: '/subscriptions/${subscription().subscriptionId}/resourceGroups/${resourceNames.commonResourceGroupName}/providers/Microsoft.Storage/storageAccounts/${resourceNames.diagnosysStorageAccountName}'
+  }
+  {
+    associationName: '${resourceNames.functionsStorageAccountName}-nsplink'
+    privateLinkResourceId: '/subscriptions/${subscription().subscriptionId}/resourceGroups/${resourceNames.commonResourceGroupName}/providers/Microsoft.Storage/storageAccounts/${resourceNames.functionsStorageAccountName}'
+  }
+  {
+    associationName: '${resourceNames.storageAccountBaseName}global-nsplink'
+    privateLinkResourceId: '/subscriptions/${subscription().subscriptionId}/resourceGroups/${resourceNames.commonResourceGroupName}/providers/Microsoft.Storage/storageAccounts/${resourceNames.storageAccountBaseName}global'
+  }
+  {
+    associationName: '${resourceNames.azureSqlServeBaseName}${settings.data.tag}-nsplink'
+    privateLinkResourceId: '/subscriptions/${subscription().subscriptionId}/resourceGroups/${resourceNames.dataStoresResourceGroupName}/providers/Microsoft.Sql/servers/${resourceNames.azureSqlServeBaseName}${settings.data.tag}'
+  }
+  {
+    associationName: settings.common.isPrimaryRegion ? '${resourceNames.storageAccountBaseName}${settings.invoiceNotifyService.tag}-nsplink' : 'None'
+    privateLinkResourceId: '/subscriptions/${subscription().subscriptionId}/resourceGroups/${resourceNames.invoiceNotifyServiceResourceGroupName}/providers/Microsoft.Storage/storageAccounts/${resourceNames.storageAccountBaseName}${settings.invoiceNotifyService.tag}'
+  }
+]
+
+// Create Public IP Prefix
+module createPublicIpPrefix 'Network-template-network-publicIpPrefix.bicep' = {
+  name: 'CreatePublicIpPrefix-${date}'
+  scope: resourceGroup(resourceNames.commonNetworkResourceGroupName)
+  params: {
+    publicIpPrefixName: toLower('${resourceNames.publicIpPrefixBaseName}${settings.common.tag}')
+    ipTagName: contains(toUpper(resourceNames.environment), 'PRD') ? 'APInvoiceServices' : 'APInvoiceServicesTest'
+    location: settings.common.region
+  }
+}
+
+// Create NAT Gateway
+module createNatGateway 'Network-template-network-natGateway.bicep' = {
+  name: 'CreateNATGateway-${date}'
+  scope: resourceGroup(resourceNames.commonNetworkResourceGroupName)
+  dependsOn: [
+    createPublicIpPrefix
+  ]
+  params: {
+    natGatewayName: natGatewayName
+    location: settings.common.region
+    natGatewayProperties: {
+      idleTimeoutInMinutes: '4'
+      publicIpPrefixes: [
+        {
+          id: createPublicIpPrefix.outputs.publicIpPrefixResourceId
+        }
+      ]
+    }
+  }
+}
+
+// Create Main Virtual Network (only on first deployment)
+module createMainVirtualNetwork 'Network-template-network-vnet.bicep' = if (settings.commonNetwork.isFirstDeployment) {
+  name: 'CreateMainVirtualNetwork-${date}'
+  scope: resourceGroup(resourceNames.commonNetworkResourceGroupName)
+  params: {
+    virtualNetworkName: virtualNetworkName
+    virtualNetworkAddressPrefix: settings.commonNetwork.virtualNetworkAddressPrefix
+    location: settings.common.region
+  }
+}
+
+// Create Subnets NSGs (only on first deployment)
+module createSubnetsNsgs 'Network-template-network-nsg.bicep' = [for (subnet, i) in settings.commonNetwork.subnets: if (settings.commonNetwork.isFirstDeployment) {
+  name: 'createSubnetsNsgs-${subnet.subnetName}'
+  scope: resourceGroup(resourceNames.commonNetworkResourceGroupName)
+  params: {
+    subnetName: subnet.subnetName
+  }
+}]
+
+// Create Subnets
+module createSubnets 'Network-template-network-subnet.bicep' = [for (subnet, i) in settings.commonNetwork.subnets: {
+  name: 'createSubnet-${subnet.subnetName}'
+  scope: resourceGroup(resourceNames.commonNetworkResourceGroupName)
+  dependsOn: [
+    createMainVirtualNetwork
+    createNatGateway
+    createSubnetsNsgs
+  ]
+  params: {
+    virtualNetworkName: virtualNetworkName
+    subnetName: subnet.subnetName
+    natGatewayResourceId: createNatGateway.outputs.natGatewayResourceId
+    subnetAddressPrefix: subnet.subnetAddressPrefix
+    delegations: subnet.delegations
+    serviceEndpoints: subnet.serviceEndpoints
+  }
+}]
+
+// Create Subnets NSG Rules
+module createSubnetsNsgRules 'Network-template-network-nsg-rules.bicep' = [for (subnet, i) in settings.commonNetwork.subnets: {
+  name: 'createSubnetsRules-${subnet.subnetName}'
+  scope: resourceGroup(resourceNames.commonNetworkResourceGroupName)
+  dependsOn: [
+    createSubnetsNsgs
+    createSubnets
+  ]
+  params: {
+    subnetName: subnet.subnetName
+    ruleDetailsList: standardNsgRules
+  }
+}]
+
+// Create Private DNS Zones
+module createPrivateDNSZones 'Network-template-network-privateDNSZone.bicep' = [for (zone, i) in privateDNSZoneList: {
+  name: 'createPrivateDNSZones-${take(zone, 65)}'
+  scope: resourceGroup(resourceNames.commonNetworkResourceGroupName)
+  dependsOn: [
+    createMainVirtualNetwork
+  ]
+  params: {
+    privateDNSZoneName: zone
+    virtualNetworkResourceId: resourceNames.commonVirtualNetworkResourceId
+  }
+}]
+
+// Create Azure Front Door WAF Policy (only in primary region)
+module createAzureFrontDoorWAFPolicy 'Network-template-network-webApplicationFirewall.bicep' = if (settings.common.isPrimaryRegion) {
+  name: 'CreateAzureFrontDoorWAFPolicy-${date}'
+  scope: resourceGroup(resourceNames.commonNetworkResourceGroupName)
+  params: {
+    wafPolicyName: frontDoorWafPolicyName
+    rateLimitThreshold: settings.commonNetwork.frontDoorWafConfig.rateLimitThreshold
+  }
+}
+
+// Create Azure Front Door (only in primary region)
+module createAzureFrontDoor 'CdnProfiles-template-cdn-profile.bicep' = if (settings.common.isPrimaryRegion) {
+  name: 'CreateAzureFrontDoor-${date}'
+  scope: resourceGroup(resourceNames.commonNetworkResourceGroupName)
+  params: {
+    cdnProfileName: cdnProfileName
+    skuName: settings.commonNetwork.frontDoorConfig.skuName
+    originResponseTimeoutSeconds: 60
+    workSpaceResourceId: resourceNames.commonWorkSpaceResourceId
+  }
+}
+
+// Create Front Door Endpoints (only in primary region)
+module createFrontDoorEndPoints 'CdnProfiles-template-cdn-profile-afdEndPoint.bicep' = [for (ep, i) in settings.commonNetwork.frontDoorConfig.endPointsConfiguration: if (settings.common.isPrimaryRegion) {
+  name: 'Create-${ep.mainServiceName}-${ep.serviceRoleName}-FrontDoorEndPoint'
+  scope: resourceGroup(resourceNames.commonNetworkResourceGroupName)
+  dependsOn: [
+    createAzureFrontDoor
+  ]
+  params: {
+    cdnProfileName: cdnProfileName
+    afdEndPointName: toLower('${ep.mainServiceName}${ep.serviceRoleName}${resourceNames.environment}')
+  }
+}]
+
+// Create Front Door Custom Domains (only in primary region)
+module createFrontDoorCustomDomains 'CdnProfiles-template-cdn-profile-customDomain.bicep' = [for (ep, i) in settings.commonNetwork.frontDoorConfig.endPointsConfiguration: if (settings.common.isPrimaryRegion) {
+  name: 'Create-${ep.mainServiceName}-${ep.serviceRoleName}-FrontDoorCustomDomain'
+  scope: resourceGroup(resourceNames.commonNetworkResourceGroupName)
+  dependsOn: [
+    createAzureFrontDoor
+  ]
+  params: {
+    cdnProfileName: cdnProfileName
+    customDomainHostName: toLower('${ep.mainServiceName}.${ep.serviceRoleName}.${resourceNames.environment}.${ep.domainName}')
+  }
+}]
+
+// Create Front Door Security Policy WAF (only in primary region)
+module createFrontDoorSecurityPolicyWAF 'CdnProfiles-template-cdn-profile-securityPolicies.bicep' = [for (ep, i) in settings.commonNetwork.frontDoorConfig.endPointsConfiguration: if (settings.common.isPrimaryRegion) {
+  name: 'Create-${ep.mainServiceName}-${ep.serviceRoleName}-FrontDoorCustomDomainWAF'
+  scope: resourceGroup(resourceNames.commonNetworkResourceGroupName)
+  dependsOn: [
+    createAzureFrontDoor
+    createAzureFrontDoorWAFPolicy
+    createFrontDoorCustomDomains
+  ]
+  params: {
+    profileName: cdnProfileName
+    wafPolicyId: createAzureFrontDoorWAFPolicy.outputs.frontDoorWafId
+    afdEndpoint: createFrontDoorCustomDomains[i].outputs.afdCustomEndpoint
+  }
+}]
+
+// Create Network Security Perimeter
+module createNetworkSecurityPerimeter 'Network-template-network-nsp.bicep' = {
+  name: 'CreateNetworkSecurityPerimeter-${date}'
+  scope: resourceGroup(resourceNames.commonNetworkResourceGroupName)
+  params: {
+    nspName: nspName
+    location: settings.common.region
+  }
+}
+
+// Create NSP Profile
+module createNspProfile 'Network-template-network-nsp-profile.bicep' = {
+  name: 'CreateNSP-Profile-${date}'
+  scope: resourceGroup(resourceNames.commonNetworkResourceGroupName)
+  dependsOn: [
+    createNetworkSecurityPerimeter
+  ]
+  params: {
+    nspName: nspName
+    nspProfileName: 'Default'
+    location: settings.common.region
+  }
+}
+
+// Create NSP Profile Access Rules
+module createNspProfileAccessRules 'Network-template-network-nsp-profile-accessRules.bicep' = {
+  name: 'CreateNSP-Profile-AccessRules${date}'
+  scope: resourceGroup(resourceNames.commonNetworkResourceGroupName)
+  dependsOn: [
+    createNspProfile
+  ]
+  params: {
+    nspName: nspName
+    nspProfileName: 'Default'
+    addressPrefixesRulesName: [
+      {
+        ruleName: 'AllowAllInBound'
+        direction: 'Inbound'
+        addressPrefixes: '*'
+        fullyQualifiedDomainNames: []
+      }
+      {
+        ruleName: 'AllowAllOutBound'
+        direction: 'Outbound'
+        addressPrefixes: []
+        fullyQualifiedDomainNames: '*'
+      }
+    ]
+  }
+}
+
+
+// Create NSP Associations
+module createNspAssociations 'Network-template-network-nsp-resourceAssociations.bicep' = {
+  name: 'CreateNSPAssociations-${date}'
+  scope: resourceGroup(resourceNames.commonNetworkResourceGroupName)
+  dependsOn: [
+    createNspProfile
+  ]
+  params: {
+    nspName: nspName
+    nspProfileName: 'Default'
+    associationDetails: nspResourceAssociations
+  }
+}

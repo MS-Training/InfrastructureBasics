@@ -1,0 +1,716 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "settings": {
+      "type": "secureObject",
+      "metadata": {
+        "description": "This is coming from the parameter File under Parameters"
+      }
+    },
+    "resourceNames": {
+      "type": "Object",
+      "metadata": {
+        "description": "This is coming from the parameter File under Parameters"
+      }
+    },
+    "date": {
+      "type": "string",
+      "defaultValue": "[utcNow()]"
+    }
+  },
+  "variables": {
+    "virtualNetworkName": "[tolower(concat(parameters('resourceNames').vnetBaseName,parameters('settings').commonNetwork.tag))]",
+    "nspName": "[tolower(concat(parameters('resourceNames').nspBaseName,parameters('settings').common.tag))]",
+    "frontDoorWafPolicyName": "[tolower(concat(parameters('resourceNames').fdwafPolicyBaseName,parameters('settings').common.tag))]",
+    "cdnProfileName": "[tolower(concat(parameters('resourceNames').cdnProfileBaseName,parameters('settings').common.tag))]",
+    "natGatewayName": "[tolower(concat(parameters('resourceNames').natGatewayBaseName,parameters('settings').common.tag))]",
+    "privateDNSZoneList": [ "privatelink.azurewebsites.net", "privatelink.vaultcore.azure.net", "privatelink.documents.azure.com", "privatelink.blob.core.windows.net", "privatelink.file.core.windows.net", "privatelink.queue.core.windows.net", "privatelink.table.core.windows.net", "privatelink.database.windows.net", "privatelink.cognitiveservices.azure.com", "privatelink.servicebus.windows.net" ],
+    "standardNsgRules": [
+      {
+        "name": "NRMS-Rule-105",
+        "properties": {
+          "description": "DO NOT DELETE - Will result in ICM Sev 2 - Azure Core Security, see aka.ms/cainsgpolicy",
+          "protocol": "*",
+          "sourcePortRange": "*",
+          "sourceAddressPrefix": "Internet",
+          "destinationAddressPrefix": "*",
+          "access": "Deny",
+          "priority": 105,
+          "direction": "Inbound",
+          "sourcePortRanges": [],
+          "destinationPortRanges": [
+            "1433",
+            "1434",
+            "3306",
+            "4333",
+            "5432",
+            "6379",
+            "7000",
+            "7001",
+            "7199",
+            "9042",
+            "9160",
+            "9300",
+            "16379",
+            "26379",
+            "27017"
+          ],
+          "sourceAddressPrefixes": [],
+          "destinationAddressPrefixes": []
+        }
+      },
+      {
+        "name": "NRMS-Rule-104",
+        "properties": {
+          "description": "Created by Azure Core Security managed policy, rule can be deleted but do not change source ips, please see aka.ms/cainsgpolicy",
+          "protocol": "*",
+          "sourcePortRange": "*",
+          "destinationPortRange": "*",
+          "sourceAddressPrefix": "CorpNetSaw",
+          "destinationAddressPrefix": "*",
+          "access": "Allow",
+          "priority": 104,
+          "direction": "Inbound",
+          "sourcePortRanges": [],
+          "destinationPortRanges": [],
+          "sourceAddressPrefixes": [],
+          "destinationAddressPrefixes": []
+        }
+      },
+      {
+        "name": "NRMS-Rule-101",
+        "properties": {
+          "description": "Created by Azure Core Security managed policy, placeholder you can delete, please see aka.ms/cainsgpolicy",
+          "protocol": "Tcp",
+          "sourcePortRange": "*",
+          "destinationPortRange": "443",
+          "sourceAddressPrefix": "VirtualNetwork",
+          "destinationAddressPrefix": "*",
+          "access": "Allow",
+          "priority": 101,
+          "direction": "Inbound",
+          "sourcePortRanges": [],
+          "destinationPortRanges": [],
+          "sourceAddressPrefixes": [],
+          "destinationAddressPrefixes": []
+        }
+      },
+      {
+        "name": "NRMS-Rule-103",
+        "properties": {
+          "description": "Created by Azure Core Security managed policy, rule can be deleted but do not change source ips, please see aka.ms/cainsgpolicy",
+          "protocol": "*",
+          "sourcePortRange": "*",
+          "destinationPortRange": "*",
+          "sourceAddressPrefix": "VirtualNetwork",
+          "destinationAddressPrefix": "*",
+          "access": "Allow",
+          "priority": 103,
+          "direction": "Inbound",
+          "sourcePortRanges": [],
+          "destinationPortRanges": [],
+          "sourceAddressPrefixes": [],
+          "destinationAddressPrefixes": []
+        }
+      },
+      {
+        "name": "NRMS-Rule-106",
+        "properties": {
+          "description": "DO NOT DELETE - Will result in ICM Sev 2 - Azure Core Security, see aka.ms/cainsgpolicy",
+          "protocol": "Tcp",
+          "sourcePortRange": "*",
+          "sourceAddressPrefix": "Internet",
+          "destinationAddressPrefix": "*",
+          "access": "Deny",
+          "priority": 106,
+          "direction": "Inbound",
+          "sourcePortRanges": [],
+          "destinationPortRanges": [
+            "22",
+            "3389"
+          ],
+          "sourceAddressPrefixes": [],
+          "destinationAddressPrefixes": []
+        }
+      },
+      {
+        "name": "NRMS-Rule-108",
+        "properties": {
+          "description": "DO NOT DELETE - Will result in ICM Sev 2 - Azure Core Security, see aka.ms/cainsgpolicy",
+          "protocol": "*",
+          "sourcePortRange": "*",
+          "sourceAddressPrefix": "Internet",
+          "destinationAddressPrefix": "*",
+          "access": "Deny",
+          "priority": 108,
+          "direction": "Inbound",
+          "sourcePortRanges": [],
+          "destinationPortRanges": [
+            "13",
+            "17",
+            "19",
+            "53",
+            "69",
+            "111",
+            "123",
+            "512",
+            "514",
+            "593",
+            "873",
+            "1900",
+            "5353",
+            "11211"
+          ],
+          "sourceAddressPrefixes": [],
+          "destinationAddressPrefixes": []
+        }
+      },
+      {
+        "name": "NRMS-Rule-107",
+        "properties": {
+          "description": "DO NOT DELETE - Will result in ICM Sev 2 - Azure Core Security, see aka.ms/cainsgpolicy",
+          "protocol": "Tcp",
+          "sourcePortRange": "*",
+          "sourceAddressPrefix": "Internet",
+          "destinationAddressPrefix": "*",
+          "access": "Deny",
+          "priority": 107,
+          "direction": "Inbound",
+          "sourcePortRanges": [],
+          "destinationPortRanges": [
+            "23",
+            "135",
+            "445",
+            "5985",
+            "5986"
+          ],
+          "sourceAddressPrefixes": [],
+          "destinationAddressPrefixes": []
+        }
+      },
+      {
+        "name": "NRMS-Rule-109",
+        "properties": {
+          "description": "DO NOT DELETE - Will result in ICM Sev 2 - Azure Core Security, see aka.ms/cainsgpolicy",
+          "protocol": "*",
+          "sourcePortRange": "*",
+          "sourceAddressPrefix": "Internet",
+          "destinationAddressPrefix": "*",
+          "access": "Deny",
+          "priority": 109,
+          "direction": "Inbound",
+          "sourcePortRanges": [],
+          "destinationPortRanges": [
+            "119",
+            "137",
+            "138",
+            "139",
+            "161",
+            "162",
+            "389",
+            "636",
+            "2049",
+            "2301",
+            "2381",
+            "3268",
+            "5800",
+            "5900"
+          ],
+          "sourceAddressPrefixes": [],
+          "destinationAddressPrefixes": []
+        }
+      }
+    ],
+    "nspResourceAssociations": [
+      {
+        "associationName": "[concat(parameters('resourceNames').keyVaultBaseName, parameters('settings').common.tag,'-nsplink')]",
+        "privateLinkResourceId": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('resourceNames').commonResourceGroupName, '/providers/Microsoft.KeyVault/vaults/',concat(parameters('resourceNames').keyVaultBaseName, parameters('settings').common.tag))]"
+      },
+      {
+        "associationName": "[concat(parameters('resourceNames').diagnosysStorageAccountName,'-nsplink')]",
+        "privateLinkResourceId": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('resourceNames').commonResourceGroupName, '/providers/Microsoft.Storage/storageAccounts/',concat(parameters('resourceNames').diagnosysStorageAccountName))]"
+      },
+      {
+        "associationName": "[concat(parameters('resourceNames').functionsStorageAccountName,'-nsplink')]",
+        "privateLinkResourceId": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('resourceNames').commonResourceGroupName, '/providers/Microsoft.Storage/storageAccounts/',concat(parameters('resourceNames').functionsStorageAccountName))]"
+      },
+      {
+        "associationName": "[concat(parameters('resourceNames').storageAccountBaseName,'global-nsplink')]",
+        "privateLinkResourceId": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('resourceNames').commonResourceGroupName, '/providers/Microsoft.Storage/storageAccounts/',concat(parameters('resourceNames').storageAccountBaseName,'global'))]"
+      },
+      {
+        "associationName": "[concat(parameters('resourceNames').azureSqlServeBaseName,parameters('settings').data.tag,'-nsplink')]",
+        "privateLinkResourceId": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('resourceNames').dataStoresResourceGroupName, '/providers/Microsoft.Sql/servers/',concat(parameters('resourceNames').azureSqlServeBaseName,parameters('settings').data.tag))]"
+      },
+      {
+        "associationName": "[if(parameters('settings').common.isPrimaryRegion, concat(parameters('resourceNames').storageAccountBaseName, parameters('settings').invoiceNotifyService.tag,'-nsplink'), 'None')]",
+        "privateLinkResourceId": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('resourceNames').invoiceNotifyServiceResourceGroupName, '/providers/Microsoft.Storage/storageAccounts/',concat(parameters('resourceNames').storageAccountBaseName, parameters('settings').invoiceNotifyService.tag))]"
+      }
+    ]
+  },
+  "resources": [
+    {
+      "name": "[concat('CreatePublicIpPrefix-', parameters('date'))]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonNetworkResourceGroupName]",
+      "apiVersion": "2021-04-01",
+      "dependsOn": [
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'Network-template-network-publicIpPrefix', '/versions/v1')]"
+        },
+        "parameters": {
+          "publicIpPrefixName": {
+            "value": "[tolower(concat(parameters('resourceNames').publicIpPrefixBaseName,parameters('settings').common.tag))]"
+          },
+          "ipTagName": {
+            "value": "[if(contains(toupper(parameters('resourceNames').environment),'PRD'),'APInvoiceServices','APInvoiceServicesTest')]"
+          },
+          "location": {
+            "value": "[parameters('settings').common.region]"
+          }
+        }
+      }
+    },
+    {
+      "name": "[concat('CreateNATGateway-', parameters('date'))]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonNetworkResourceGroupName]",
+      "apiVersion": "2021-04-01",
+      "dependsOn": [
+        "[concat('CreatePublicIpPrefix-', parameters('date'))]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'Network-template-network-natGateway', '/versions/v1')]"
+        },
+        "parameters": {
+          "natGatewayName": {
+            "value": "[variables('natGatewayName')]"
+          },
+          "location": {
+            "value": "[parameters('settings').common.region]"
+          },
+          "natGatewayProperties": {
+            "value": {
+              "idleTimeoutInMinutes": "4",
+              "publicIpPrefixes": [
+                {
+                  "id": "[reference(concat('CreatePublicIpPrefix-', parameters('date'))).outputs.publicIpPrefixResourceId.value]"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "condition": "[parameters('settings').commonNetwork.isFirstDeployment]",
+      "name": "[concat('CreateMainVirtualNetwork-', parameters('date'))]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonNetworkResourceGroupName]",
+      "apiVersion": "2021-04-01",
+      "dependsOn": [
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'Network-template-network-vnet', '/versions/v1')]"
+        },
+        "parameters": {
+          "virtualNetworkName": {
+            "value": "[variables('virtualNetworkName')]"
+          },
+          "virtualNetworkAddressPrefix": {
+            "value": "[parameters('settings').commonNetwork.virtualNetworkAddressPrefix]"
+          },
+          "location": {
+            "value": "[parameters('settings').common.region]"
+          }
+        }
+      }
+    },
+    {
+      "comments": "IMPORTANT: This only runs when it is the first deployment, If you do enable this to run, ensure all callers of this file template-network-nsg-rules.json are deployed",
+      "condition": "[parameters('settings').commonNetwork.isFirstDeployment]",
+      "name": "[concat('createSubnetsNsgs-',parameters('settings').commonNetwork.subnets[copyIndex('createSubnetsNsgsLoop')].subnetName)]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonNetworkResourceGroupName]",
+      "apiVersion": "2022-09-01",
+      "copy": {
+        "name": "createSubnetsNsgsLoop",
+        "count": "[length(parameters('settings').commonNetwork.subnets)]"
+      },
+      "dependsOn": [
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'Network-template-network-nsg', '/versions/v1')]"
+        },
+        "parameters": {
+          "subnetName": {
+            "value": "[parameters('settings').commonNetwork.subnets[copyIndex('createSubnetsNsgsLoop')].subnetName]"
+          }
+        }
+      }
+    },
+    {
+      "name": "[concat('createSubnet-',parameters('settings').commonNetwork.subnets[copyIndex('createSubnetsLoop')].subnetName)]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonNetworkResourceGroupName]",
+      "apiVersion": "2022-09-01",
+      "copy": {
+        "name": "createSubnetsLoop",
+        "count": "[length(parameters('settings').commonNetwork.subnets)]",
+        "mode": "Serial"
+      },
+      "dependsOn": [
+        "[concat('CreateMainVirtualNetwork-', parameters('date'))]",
+        "[concat('CreateNATGateway-', parameters('date'))]",
+        "createSubnetsNsgsLoop"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'Network-template-network-subnet', '/versions/v1')]"
+        },
+        "parameters": {
+          "virtualNetworkName": {
+            "value": "[variables('virtualNetworkName')]"
+          },
+          "subnetName": {
+            "value": "[parameters('settings').commonNetwork.subnets[copyIndex('createSubnetsLoop')].subnetName]"
+          },
+          "natGatewayResourceId": {
+            "value": "[reference(concat('CreateNATGateway-', parameters('date'))).outputs.natGatewayResourceId.value]"
+          },
+          "subnetAddressPrefix": {
+            "value": "[parameters('settings').commonNetwork.subnets[copyIndex('createSubnetsLoop')].subnetAddressPrefix]"
+          },
+          "delegations": {
+            "value": "[parameters('settings').commonNetwork.subnets[copyIndex('createSubnetsLoop')].delegations]"
+          },
+          "serviceEndpoints": {
+            "value": "[parameters('settings').commonNetwork.subnets[copyIndex('createSubnetsLoop')].serviceEndpoints]"
+          }
+        }
+      }
+    },
+    {
+      "name": "[concat('createSubnetsRules-',parameters('settings').commonNetwork.subnets[copyIndex('createSubnetsNsgRulesLoop')].subnetName)]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonNetworkResourceGroupName]",
+      "apiVersion": "2022-09-01",
+      "copy": {
+        "name": "createSubnetsNsgRulesLoop",
+        "count": "[length(parameters('settings').commonNetwork.subnets)]"
+      },
+      "dependsOn": [
+        "createSubnetsNsgsLoop",
+        "createSubnetsLoop"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'Network-template-network-nsg-rules', '/versions/v1')]"
+        },
+        "parameters": {
+          "subnetName": {
+            "value": "[parameters('settings').commonNetwork.subnets[copyIndex('createSubnetsNsgRulesLoop')].subnetName]"
+          },
+          "ruleDetailsList": {
+            "value": "[variables('standardNsgRules')]"
+          }
+        }
+      }
+    },
+    {
+      "name": "[take(concat('createPrivateDNSZones-',variables('privateDNSZoneList')[copyIndex('createPrivateDNSZonesLoop')]),65)]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonNetworkResourceGroupName]",
+      "apiVersion": "2022-09-01",
+      "copy": {
+        "name": "createPrivateDNSZonesLoop",
+        "count": "[length(variables('privateDNSZoneList'))]"
+      },
+      "dependsOn": [
+        "[concat('CreateMainVirtualNetwork-', parameters('date'))]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'Network-template-network-privateDNSZone', '/versions/v1')]"
+        },
+        "parameters": {
+          "privateDNSZoneName": {
+            "value": "[variables('privateDNSZoneList')[copyIndex('createPrivateDNSZonesLoop')]]"
+          },
+          "virtualNetworkResourceId": {
+            "value": "[parameters('resourceNames').commonVirtualNetworkResourceId]"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[parameters('settings').common.isPrimaryRegion]",
+      "name": "[concat('CreateAzureFrontDoorWAFPolicy-', parameters('date'))]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonNetworkResourceGroupName]",
+      "apiVersion": "2022-09-01",
+      "dependsOn": [
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'Network-template-network-webApplicationFirewall', '/versions/v1')]"
+        },
+        "parameters": {
+          "wafPolicyName": {
+            "value": "[variables('frontDoorWafPolicyName')]"
+          },
+          "rateLimitThreshold": {
+            "value": "[parameters('settings').commonNetwork.frontDoorWafConfig.rateLimitThreshold]"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[parameters('settings').common.isPrimaryRegion]",
+      "name": "[concat('CreateAzureFrontDoor-', parameters('date'))]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonNetworkResourceGroupName]",
+      "apiVersion": "2022-09-01",
+      "dependsOn": [
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'CdnProfiles-template-cdn-profile', '/versions/v1')]"
+        },
+        "parameters": {
+          "cdnProfileName": {
+            "value": "[variables('cdnProfileName')]"
+          },
+          "skuName": {
+            "value": "[parameters('settings').commonNetwork.frontDoorConfig.skuName]"
+          },
+          "originResponseTimeoutSeconds": {
+            "value": 60
+          },
+          "workSpaceResourceId": {
+            "value": "[parameters('resourceNames').commonWorkSpaceResourceId]"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[parameters('settings').common.isPrimaryRegion]",
+      "name": "[concat('Create-',parameters('settings').commonNetwork.frontDoorConfig.endPointsConfiguration[copyIndex('CreateFrontDoorEndPointsLoop')].mainServiceName,'-',parameters('settings').commonNetwork.frontDoorConfig.endPointsConfiguration[copyIndex('CreateFrontDoorEndPointsLoop')].serviceRoleName,'-FrontDoorEndPoint')]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonNetworkResourceGroupName]",
+      "apiVersion": "2022-09-01",
+      "copy": {
+        "name": "CreateFrontDoorEndPointsLoop",
+        "count": "[length(parameters('settings').commonNetwork.frontDoorConfig.endPointsConfiguration)]"
+      },
+      "dependsOn": [
+        "[concat('CreateAzureFrontDoor-', parameters('date'))]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'CdnProfiles-template-cdn-profile-afdEndPoint', '/versions/v1')]"
+        },
+        "parameters": {
+          "cdnProfileName": {
+            "value": "[variables('cdnProfileName')]"
+          },
+          "afdEndPointName": {
+            "value": "[tolower(concat(parameters('settings').commonNetwork.frontDoorConfig.endPointsConfiguration[copyIndex('CreateFrontDoorEndPointsLoop')].mainServiceName,parameters('settings').commonNetwork.frontDoorConfig.endPointsConfiguration[copyIndex('CreateFrontDoorEndPointsLoop')].serviceRoleName,parameters('resourceNames').environment))]"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[parameters('settings').common.isPrimaryRegion]",
+      "name": "[concat('Create-',parameters('settings').commonNetwork.frontDoorConfig.endPointsConfiguration[copyIndex('CreateFrontDoorCustomDomainsLoop')].mainServiceName,'-',parameters('settings').commonNetwork.frontDoorConfig.endPointsConfiguration[copyIndex('CreateFrontDoorCustomDomainsLoop')].serviceRoleName,'-FrontDoorCustomDomain')]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonNetworkResourceGroupName]",
+      "apiVersion": "2022-09-01",
+      "copy": {
+        "name": "CreateFrontDoorCustomDomainsLoop",
+        "count": "[length(parameters('settings').commonNetwork.frontDoorConfig.endPointsConfiguration)]"
+      },
+      "dependsOn": [
+        "[concat('CreateAzureFrontDoor-', parameters('date'))]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'CdnProfiles-template-cdn-profile-customDomain', '/versions/v1')]"
+        },
+        "parameters": {
+          "cdnProfileName": {
+            "value": "[variables('cdnProfileName')]"
+          },
+          "customDomainHostName": {
+            "value": "[tolower(concat(parameters('settings').commonNetwork.frontDoorConfig.endPointsConfiguration[copyIndex('CreateFrontDoorCustomDomainsLoop')].mainServiceName,'.',parameters('settings').commonNetwork.frontDoorConfig.endPointsConfiguration[copyIndex('CreateFrontDoorCustomDomainsLoop')].serviceRoleName,'.',parameters('resourceNames').environment,'.',parameters('settings').commonNetwork.frontDoorConfig.endPointsConfiguration[copyIndex('CreateFrontDoorCustomDomainsLoop')].domainName))]"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[parameters('settings').common.isPrimaryRegion]",
+      "name": "[concat('Create-',parameters('settings').commonNetwork.frontDoorConfig.endPointsConfiguration[copyIndex('CreateFrontDoorSecurityPolicyWAFLoop')].mainServiceName,'-',parameters('settings').commonNetwork.frontDoorConfig.endPointsConfiguration[copyIndex('CreateFrontDoorSecurityPolicyWAFLoop')].serviceRoleName,'-FrontDoorCustomDomainWAF')]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonNetworkResourceGroupName]",
+      "apiVersion": "2022-09-01",
+      "copy": {
+        "name": "CreateFrontDoorSecurityPolicyWAFLoop",
+        "count": "[length(parameters('settings').commonNetwork.frontDoorConfig.endPointsConfiguration)]"
+      },
+      "dependsOn": [
+        "[concat('CreateAzureFrontDoor-', parameters('date'))]",
+        "[concat('CreateAzureFrontDoorWAFPolicy-', parameters('date'))]",
+        "CreateFrontDoorCustomDomainsLoop"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'CdnProfiles-template-cdn-profile-securityPolicies', '/versions/v1')]"
+        },
+        "parameters": {
+          "profileName": {
+            "value": "[variables('cdnProfileName')]"
+          },
+          "wafPolicyId": {
+            "value": "[reference(concat('CreateAzureFrontDoorWAFPolicy-', parameters('date')), '2022-09-01').outputs.frontDoorWafId.value]"
+          },
+          "afdEndpoint": {
+            "value": "[reference(concat('Create-',parameters('settings').commonNetwork.frontDoorConfig.endPointsConfiguration[copyIndex('CreateFrontDoorSecurityPolicyWAFLoop')].mainServiceName,'-', parameters('settings').commonNetwork.frontDoorConfig.endPointsConfiguration[copyIndex('CreateFrontDoorSecurityPolicyWAFLoop')].serviceRoleName, '-FrontDoorCustomDomain')).outputs.afdCustomEndpoint.value]"
+          }
+        }
+      }
+    },
+    {
+      "name": "[concat('CreateNetworkSecurityPerimeter-', parameters('date'))]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonNetworkResourceGroupName]",
+      "apiVersion": "2021-04-01",
+      "dependsOn": [
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'Network-template-network-nsp', '/versions/v1')]"
+        },
+        "parameters": {
+          "nspName": {
+            "value": "[variables('nspName')]"
+          },
+          "location": {
+            "value": "[parameters('settings').common.region]"
+          }
+        }
+      }
+    },
+    {
+      "name": "[concat('CreateNSP-Profile-', parameters('date'))]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonNetworkResourceGroupName]",
+      "apiVersion": "2021-04-01",
+      "dependsOn": [
+        "[concat('CreateNetworkSecurityPerimeter-', parameters('date'))]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'Network-template-network-nsp-profile', '/versions/v1')]"
+        },
+        "parameters": {
+          "nspName": {
+            "value": "[variables('nspName')]"
+          },
+          "nspProfileName": {
+            "value": "Default"
+          },
+          "location": {
+            "value": "[parameters('settings').common.region]"
+          }
+        }
+      }
+    },
+    {
+      "name": "[concat('CreateNSP-Profile-AccessRules', parameters('date'))]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonNetworkResourceGroupName]",
+      "apiVersion": "2021-04-01",
+      "dependsOn": [
+        "[concat('CreateNSP-Profile-', parameters('date'))]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'Network-template-network-nsp-profile-accessRules', '/versions/v1')]"
+        },
+        "parameters": {
+          "nspName": {
+            "value": "[variables('nspName')]"
+          },
+          "nspProfileName": {
+            "value": "Default"
+          },
+          "addressPrefixesRulesName": {
+            "value": [
+              {
+                "ruleName": "AllowAllInBound",
+                "direction": "Inbound",
+                "addressPrefixes": "*",
+                "fullyQualifiedDomainNames": []
+              },
+              {
+                "ruleName": "AllowAllOutBound",
+                "direction": "Outbound",
+                "addressPrefixes": [],
+                "fullyQualifiedDomainNames": "*"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "[concat('CreateNSPAssociations-', parameters('date'))]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonNetworkResourceGroupName]",
+      "apiVersion": "2021-04-01",
+      "dependsOn": [
+        "[concat('CreateNSP-Profile-', parameters('date'))]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'Network-template-network-nsp-resourceAssociations', '/versions/v1')]"
+        },
+        "parameters": {
+          "nspName": {
+            "value": "[variables('nspName')]"
+          },
+          "nspProfileName": {
+            "value": "Default"
+          },
+          "associationDetails": {
+            "value": "[variables('nspResourceAssociations')]"
+          }
+        }
+      }
+    }
+  ],
+  "outputs": {
+  }
+}
