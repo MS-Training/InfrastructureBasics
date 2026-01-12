@@ -1,0 +1,31 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "deploymentFlags": {
+            "value": {
+                "deployNetworkResourceGroup": true
+            }
+        },
+        "settings": {
+            "value": {
+                "organizationTag": "fc",
+                "environment": "dev",
+                "location": "eastus",
+                "managedBy": "Global-Infrastructure-Framework",
+                "Network": {
+                    "ResourceGroup": {
+                        "deployOrUpdate": true,
+                        "name": "FullCodeNetwork"
+                    },
+                    "addressPrefix": "10.0.0.0/16"
+                },
+                "standardTags": {
+                    "Team": "FullCode",
+                    "Project": "Global-Infrastructure",
+                    "Environment": "Development"
+                }
+            }
+        }
+    }
+}
