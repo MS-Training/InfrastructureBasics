@@ -15,6 +15,12 @@ Module-Creator: Edward Rush
 /////////////////////////////////////////////////////
 targetScope = 'subscription'
 
+
+@description('An object containing deployment flags to control module behavior.')
+param deploymentFlags object
+
+
+
 @description('The Secure Object that contains the settings to be passed to the Network Resource Group')
 @secure()
 param settings object
@@ -25,8 +31,14 @@ param settings object
 /////////////////////////////////////////////////////
 var deployOrUpdate = settings.Network.ResourceGroup.deployOrUpdate
 
+var deployNetworkResourceGroup = deploymentFlags.deployNetworkResourceGroup
+
+// Only deploy if deployNetworkResourceGroup flag is true
+var shouldDeployNetworkResourceGroup = deployNetworkResourceGroup && deployOrUpdate
+
+
 //if the resource group should be deployed or updated
-resource NetworkResourceGroup 'Microsoft.Resources/resourceGroups@2025-04-01' = if (deployOrUpdate) {
+resource NetworkResourceGroup 'Microsoft.Resources/resourceGroups@2025-04-01' = if (shouldDeployNetworkResourceGroup) {
   location: settings.location
   managedBy: settings.managedBy
   name: '${settings.organizationTag}-${settings.environment}-${settings.Network.ResourceGroup.name}'

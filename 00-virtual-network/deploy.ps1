@@ -24,8 +24,8 @@ $Directorypath = $PSScriptRoot
 #$Parameters = "C:\Users\edrush.REDMOND\OneDrive - Microsoft\R\repos\Invoice-Other-Stories\GovernmentClearance\Deploy-VirtualNetwork\vn-individual-deployments\parameters.json"
 
 #path to the default templates
-$Template  = $Directorypath + "\deploy.bicep" 
-$Parameters = $Directorypath + "\parameters.json" 
+$Template  = $Directorypath + ".\deploy.bicep" 
+$Parameters = $Directorypath + ".\parameters-development.json" 
 
 Write-Output $Template -Verbose
 Write-Output $Parameters -Verbose
@@ -35,7 +35,7 @@ Write-Output $Parameters -Verbose
 #$Subscription = Get-AzSubscription -SubscriptionName "Visual Studio Enterprise Subscription"
 
 #use when you set the entire scope of execution to the subscription
-$Subscription = Get-AzSubscription -SubscriptionId "f7798ac6-fe0d-4abd-8272-7ab2ea265db0"
+$Subscription = Get-AzSubscription -SubscriptionId "a897c71d-73a0-4b90-b084-9d2b39eee4eb"
 Set-AzContext -SubscriptionObject $Subscription
 
 $Location = "eastus2"
