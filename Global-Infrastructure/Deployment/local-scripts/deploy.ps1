@@ -26,7 +26,8 @@ $Directorypath = (Get-Location).Path
 #$Parameters = "C:\Users\edrush.REDMOND\OneDrive - Microsoft\R\repos\Invoice-Other-Stories\GovernmentClearance\Deploy-VirtualNetwork\vn-individual-deployments\parameters.json"
 
 # Combine paths using Join-Path for cross-platform compatibility
-$Template = Join-Path $Directorypath "Resources\Components\Network\module-network-resourcegroup.bicep"
+#$Template = Join-Path $Directorypath "Resources\Components\Network\module-network-resourcegroup.bicep"
+$Template = Join-Path $Directorypath "Deployment\main-network-resources.bicep"
 $Parameters = Join-Path $Directorypath "Deployment\azuredeploy-parameters.json"
 Write-Output $Template -Verbose
 Write-Output $Parameters -Verbose
@@ -46,7 +47,7 @@ $Location = "eastus2"
 #https://docs.microsoft.com/en-us/powershell/module/az.resources/new-azresourcegroupdeployment?view=azps-8.0.0
 #$rgDeployment = New-AzResourceGroupDeployment -Name $DeploymentName -ResourceGroupName $ResourceGroup -TemplateFile $ResourceGroupTemplate -TemplateParameterFile $ResourceGroupParameters
 
-$DeploymentName = "VirtualNetworkDeployment$((Get-Date).Ticks.ToString())"
+$DeploymentName = "MainDeployment$((Get-Date).Ticks.ToString())"
 $rgDeployment = New-AzDeployment -Name $DeploymentName -Location $Location -TemplateFile $Template -TemplateParameterFile $Parameters
 
 Write-Output $rgDeployment

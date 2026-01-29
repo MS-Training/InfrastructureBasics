@@ -26,19 +26,17 @@ param deploymentFlags object
 param settings object
 
 
+
 /////////////////////////////////////////////////////
 // Extract the Deploy or Update Setting to determine if the Resource should be created or Updated.
 /////////////////////////////////////////////////////
-var deployOrUpdate = settings.Network.ResourceGroup.deployOrUpdate
+
 
 var deployNetworkResourceGroup = deploymentFlags.deployNetworkResourceGroup
 
-// Only deploy if deployNetworkResourceGroup flag is true
-var shouldDeployNetworkResourceGroup = deployNetworkResourceGroup && deployOrUpdate
-
 
 //if the resource group should be deployed or updated
-resource NetworkResourceGroup 'Microsoft.Resources/resourceGroups@2025-04-01' = if (shouldDeployNetworkResourceGroup) {
+resource NetworkResourceGroup 'Microsoft.Resources/resourceGroups@2025-04-01' = if (deployNetworkResourceGroup) {
   location: settings.location
   managedBy: settings.managedBy
   name: '${settings.organizationTag}-${settings.environment}-${settings.Network.ResourceGroup.name}'
@@ -46,4 +44,11 @@ resource NetworkResourceGroup 'Microsoft.Resources/resourceGroups@2025-04-01' = 
   tags: settings.standardTags
 }
 
+
+// Return individual properties
+output createdNetworkResourceGroup object = {
+  name: NetworkResourceGroup.?name ?? ''
+  id: NetworkResourceGroup.?id ?? ''
+  location: NetworkResourceGroup.?location ?? ''
+}
 

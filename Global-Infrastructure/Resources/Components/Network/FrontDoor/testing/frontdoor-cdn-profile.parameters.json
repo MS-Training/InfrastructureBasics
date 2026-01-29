@@ -1,0 +1,60 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "profileName": {
+      "value": "fd-myapp-prod"
+    },
+    "endpointName": {
+      "value": "myapp"
+    },
+    "sku": {
+      "value": "Premium_AzureFrontDoor"
+    },
+    "originGroupName": {
+      "value": "webapp-origin-group"
+    },
+    "originName": {
+      "value": "webapp-origin"
+    },
+    "routeName": {
+      "value": "default-route"
+    },
+    "originConfig": {
+      "value": {
+        "hostName": "myapp.azurewebsites.net",
+        "httpPort": 80,
+        "httpsPort": 443,
+        "priority": 1,
+        "weight": 1000,
+        "enabled": true
+      }
+    },
+    "healthProbeConfig": {
+      "value": {
+        "probePath": "/health",
+        "probeProtocol": "Https",
+        "probeRequestType": "GET",
+        "probeIntervalInSeconds": 30
+      }
+    },
+    "routeConfig": {
+      "value": {
+        "patternsToMatch": ["/*"],
+        "supportedProtocols": ["Http", "Https"],
+        "forwardingProtocol": "HttpsOnly",
+        "httpsRedirect": "Enabled"
+      }
+    },
+    "originResponseTimeoutSeconds": {
+      "value": 60
+    },
+    "tags": {
+      "value": {
+        "environment": "production",
+        "application": "myapp",
+        "managedBy": "bicep"
+      }
+    }
+  }
+}
