@@ -26,16 +26,17 @@ param epochTime int = dateTimeToEpoch(dateTimeAdd(utcNow(), 'P1Y'))
 
 
 // ============================================================================
-// Step 1: Create Resource Group
+// Step 1: Create Resource Group using the Base Template Module
 // ============================================================================
-module rgmodule '../Resources/Components/Network/module-network-resourcegroup.bicep' = {
+module rgmodule '../Resources/BaseModules/module-resourcegroup.bicep' = {
   params: {
-    deploymentFlags: deploymentFlags
+    resourceGroupName: settings.Network.ResourceGroup.name
     settings: settings
+    shouldDeploy: settings.Network.ResourceGroup.shouldDeploy
   }
 }
 
-var currentResourceGroupName = '${settings.organizationTag}-${settings.environment}-${settings.Network.ResourceGroup.name}'
+var currentResourceGroupName = 'rg-${settings.organizationTag}-${settings.environment}-${settings.Network.ResourceGroup.name}'
 
 
 
@@ -47,7 +48,7 @@ resource networkResourceGroup 'Microsoft.Resources/resourceGroups@2025-04-01' ex
   dependsOn: [rgmodule]
 }
 
-var createdResourceGroupObject = rgmodule.outputs.createdNetworkResourceGroup
+var createdResourceGroupObject = rgmodule.outputs.createdCreatedResourceGroup
 
 
 // ============================================================================

@@ -17,7 +17,8 @@
                 "Network": {
                     "ResourceGroup": {
                         "comment": "Settings for the Network Resource Group",
-                        "name": "FullCodeNetwork"
+                        "name": "fullcodenetwork",
+                        "shouldDeploy": true
                     },
                     "addressPrefix": "10.0.0.0/16",
                     "FrontDoorCDN": {
