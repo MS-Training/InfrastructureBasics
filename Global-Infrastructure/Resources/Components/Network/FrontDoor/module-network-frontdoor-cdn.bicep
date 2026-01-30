@@ -20,12 +20,67 @@ resource cdnProfile 'Microsoft.Cdn/profiles@2025-06-01' = {
 // Front Door Endpoint
 // ============================================================================
 
-resource endpoint 'Microsoft.Cdn/profiles/afdEndpoints@2025-06-01' = {
+resource endpoint 'Microsoft.Cdn/profiles/afdEndpoints@2025-06-01' = if (contains(
+  settings.Network.FrontDoorCDN,
+  'endpoint'
+)){
   parent: cdnProfile
   name: settings.Network.FrontDoorCDN.endpoint.name
   location: settings.Network.FrontDoorCDN.location
   tags: settings.standardTags
   properties: settings.Network.FrontDoorCDN.endpoint.properties
+}
+
+// ============================================================================
+// Origin Group with Health Probe
+// ============================================================================
+resource originGroup 'Microsoft.Cdn/profiles/originGroups@2024-02-01' = if (contains(
+  settings.Network.FrontDoorCDN,
+  'originGroup'
+)) {
+  parent: cdnProfile
+  name: settings.Network.FrontDoorCDN.originGroup.name
+  properties: {
+    loadBalancingSettings: settings.Network.FrontDoorCDN.originGroup.loadBalancingSettings
+    healthProbeSettings: settings.Network.FrontDoorCDN.originGroup.healthProbeSettings
+    sessionAffinityState: settings.Network.FrontDoorCDN.originGroup.?sessionAffinityState ?? 'Disabled'
+  }
+}
+
+// ============================================================================
+// Origin (Backend)
+// ============================================================================
+resource origin 'Microsoft.Cdn/profiles/originGroups/origins@2024-02-01' = if (contains(
+  settings.Network.FrontDoorCDN,
+  'origin'
+)) {
+  parent: originGroup
+  name: settings.Network.FrontDoorCDN.origin.name
+  properties: settings.Network.FrontDoorCDN.origin.properties
+}
+
+// ============================================================================
+// Route (connects endpoint to origin group)
+// ============================================================================
+resource route 'Microsoft.Cdn/profiles/afdEndpoints/routes@2024-02-01' = if (contains(
+  settings.Network.FrontDoorCDN,
+  'route'
+)) {
+  parent: endpoint
+  name: settings.Network.FrontDoorCDN.route.name
+  properties: {
+    originGroup: {
+      id: originGroup.id
+    }
+    originPath: settings.Network.FrontDoorCDN.route.?originPath ?? '/'
+    supportedProtocols: settings.Network.FrontDoorCDN.route.?supportedProtocols ?? ['Http', 'Https']
+    patternsToMatch: settings.Network.FrontDoorCDN.route.?patternsToMatch ?? ['/*']
+    forwardingProtocol: settings.Network.FrontDoorCDN.route.?forwardingProtocol ?? 'HttpsOnly'
+    linkToDefaultDomain: settings.Network.FrontDoorCDN.route.?linkToDefaultDomain ?? 'Enabled'
+    httpsRedirect: settings.Network.FrontDoorCDN.route.?httpsRedirect ?? 'Enabled'
+    enabledState: 'Enabled'
+  }
+  dependsOn: [origin]
 }
 
 // ============================================================================
