@@ -27,8 +27,9 @@ $Directorypath = (Get-Location).Path
 
 # Combine paths using Join-Path for cross-platform compatibility
 #$Template = Join-Path $Directorypath "Resources\Components\Network\module-network-resourcegroup.bicep"
-$Template = Join-Path $Directorypath "Deployment\main-network-resources.bicep"
-$Parameters = Join-Path $Directorypath "Deployment\azuredeploy-parameters.json"
+$Template   = Join-Path $Directorypath "Global-Infrastructure\Deployers\fc\ServiceRootGroup\Templates\deploy.bicep"
+$Parameters = Join-Path $Directorypath "Global-Infrastructure\Deployers\fc\ServiceRootGroup\Parameters\azuredeploy-parameters.json"
+
 Write-Output $Template -Verbose
 Write-Output $Parameters -Verbose
 

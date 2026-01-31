@@ -37,6 +37,7 @@
 			"Module-Version: ${3:module-version}",
 			"Module-Description: ${4:module-description}",
 			"Module-Creator: ${5:module-creator}",
+			"Module-Creation-Date: ${6:${CURRENT_YEAR}-${CURRENT_MONTH}-${CURRENT_DATE}}",
 			"********************************************************************************/"
 		],
 		"description": "Adds a Default Module Metadata Placeholder that you can quickly fill out."

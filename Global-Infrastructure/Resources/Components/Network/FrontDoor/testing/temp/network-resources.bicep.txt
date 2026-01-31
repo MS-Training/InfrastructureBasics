@@ -1,5 +1,0 @@
-param secureParam object {
-  secure: true
-}
-
-output secureOutput object = secureParam
