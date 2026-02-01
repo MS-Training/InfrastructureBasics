@@ -5,6 +5,7 @@
 import {
   resourceGroupOutputType
   frontDoorMinimalOutputType
+  storageAccountOutputType
 } from '../../../../Resources/BaseModules/types.bicep'
 
 targetScope = 'subscription'
@@ -59,7 +60,7 @@ resource networkResourceGroup 'Microsoft.Resources/resourceGroups@2025-04-01' ex
 // ============================================================================
 module frontDoor '../../../../Resources/BaseModules/module-network-minimal-frontdoor.bicep' = {
   scope: networkResourceGroup
-  name: '${settings.Network.FrontDoor.profileName}-${deploymentGuid}'
+  name: 'fd-${settings.Network.FrontDoor.profileName}-${deploymentGuid}'
   params: {
     settings: settings
   }
@@ -74,7 +75,7 @@ var frontDoorOutputs frontDoorMinimalOutputType = frontDoor.outputs.frontDoorCre
 // Step 3: Create Resource Group for the Template Specs deployments
 // ============================================================================
 module templateSpecsResourceGroupModule '../../../../Resources/BaseModules/module-resourcegroup.bicep' = {
-  name: 'rg-${settings.TemplateSpec.ResourceGroup.name}-${deploymentGuid}'
+  name: 'temp-${settings.TemplateSpec.ResourceGroup.name}-${deploymentGuid}'
   params: {
     resourceGroupName: settings.TemplateSpec.ResourceGroup.name
     settings: settings
@@ -89,9 +90,24 @@ resource templateSpecsResourceGroup 'Microsoft.Resources/resourceGroups@2025-04-
 }
 
 
+@description('Storage account module for the network resource group default storage account')
+module defaultStorageAccountModule '../../../../Resources/BaseModules/module-storage-account.bicep' = {
+  scope: networkResourceGroup
+  name: 'st-${settings.StorageAccounts.NetworkStorageAccount.name}-${deploymentGuid}'
+  params: {
+    settings: settings
+    storageAccount: settings.StorageAccounts.NetworkStorageAccount
+  }
+  dependsOn: [newtworkResourceGroupModule]
+}
+
+var defaultStorageAccountOuts storageAccountOutputType = defaultStorageAccountModule.outputs.storageAccountCreated
+
+
 // ============================================================================
 // Outputs
 // ============================================================================
 output frontDoorCreated frontDoorMinimalOutputType = frontDoorOutputs
 output networkResourceGroupCreated resourceGroupOutputType = networkResourceGroupOuts
 output templateSpecsResourceGroupCreated resourceGroupOutputType = templateSpecsResourceGroupOuts
+output defaultStorageAccountCreated storageAccountOutputType = defaultStorageAccountOuts

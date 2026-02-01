@@ -2,7 +2,7 @@
 This module is used for the deployment of an Organization regional resource group.
 Framework-Name: Global-Infrastructure
 Module-Name: module-network-minimal-frontdoor
-Module-Version: 1.0
+Module-Version: v01
 Module-Description: Minimal Front Door Resource
 Module-Creator: Edward Rush
 Module-Creation-Date: 2026-01-31
@@ -21,7 +21,7 @@ param settings object
 // Front Door CDN Profile
 // ============================================================================
 resource cdnProfile 'Microsoft.Cdn/profiles@2025-06-01' = {
-  name: '${settings.organizationTag}-${settings.Network.FrontDoor.profileName}-${settings.environment}'
+  name: 'fd-${settings.organizationTag}-${settings.Network.FrontDoor.profileName}-${settings.environment}'
   location: settings.Network.FrontDoor.location
   tags: settings.standardTags
   sku: settings.Network.FrontDoor.sku

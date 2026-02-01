@@ -40,3 +40,24 @@ type frontDoorMinimalOutputType = {
   endpointId: string
 }
 
+
+@description('The output type for a Storage Account Module')
+@export()
+type storageAccountOutputType = {
+  @description('Storage Account resource ID')
+  id: string
+  @description('Storage Account name')  
+  name: string
+  @description('Storage Account blob service endpoints')
+  endpoints: {
+  @description('Blob service endpoint URL')
+    blob: string
+  @description('File service endpoint URL')
+    file: string
+  @description('Table service endpoint URL')
+    table: string
+  @description('Queue service endpoint URL')
+    queue: string
+  }
+}
+

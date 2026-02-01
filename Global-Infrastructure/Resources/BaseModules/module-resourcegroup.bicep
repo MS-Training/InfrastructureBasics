@@ -2,7 +2,7 @@
 This module is used for the deployment of an Organization regional resource groups.
 Framework-Name: Global-Infrastructure
 Module-Name: module-resourcegroup
-Module-Version: 1.0
+Module-Version: v01
 Module-Description: The basic Module for any resource group. API Version 2025-04-01
 Module-Creator: Edward Rush
 Module-Creation-Date: 2026-01-31

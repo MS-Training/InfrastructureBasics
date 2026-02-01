@@ -14,6 +14,11 @@
                 "environment": "dev",
                 "location": "eastus",
                 "managedBy": "Global-Infrastructure-Framework",
+                "standardTags": {
+                    "Team": "FullCode",
+                    "Project": "Global-Infrastructure",
+                    "Environment": "Development"
+                },
                 "Network": {
                     "ResourceGroup": {
                         "comment": "Settings for the Network Resource Group",
@@ -47,10 +52,41 @@
                         "name": "templatespec"
                     }
                 },
-                "standardTags": {
-                    "Team": "FullCode",
-                    "Project": "Global-Infrastructure",
-                    "Environment": "Development"
+                "StorageAccounts": {
+                    "NetworkStorageAccount": {
+                        "comment": "The default Storage Account used for general purposes",
+                        "name": "network",
+                        "kind": "StorageV2",
+                        "location": "eastus",
+                        "properties": {
+                            "allowSharedKeyAccess": false,
+                            "supportsHttpsTrafficOnly": true,
+                            "minimumTlsVersion": "TLS1_2",
+                            "allowBlobPublicAccess": false,
+                            "networkAcls": {
+                                "defaultAction": "Deny",
+                                "bypass": "AzureServices"
+                            },
+                            "isHnsEnabled": false,
+                            "accessTier": "Hot"
+                        },
+                        "sku": {
+                            "name": "Standard_LRS"
+                        },
+                        "BlobStorage": {
+                            "name": "default",
+                            "properties": {
+                                "deleteRetentionPolicy": {
+                                    "enabled": true,
+                                    "days": 7
+                                },
+                                "containerDeleteRetentionPolicy": {
+                                    "enabled": true,
+                                    "days": 7
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
