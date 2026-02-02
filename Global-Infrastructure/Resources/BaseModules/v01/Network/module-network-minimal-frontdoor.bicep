@@ -11,7 +11,7 @@ Module-Creation-Date: 2026-01-31
 /////////////////////////////////////////////////////
 // Type imports
 /////////////////////////////////////////////////////
-import { frontDoorMinimalOutputType } from './types.bicep'
+import { frontDoorMinimalOutputType } from '../types.bicep'
 
 @description('The Secure Object that contains the settings to be passed to the module')
 @secure()
@@ -21,7 +21,7 @@ param settings object
 // Front Door CDN Profile
 // ============================================================================
 resource cdnProfile 'Microsoft.Cdn/profiles@2025-06-01' = {
-  name: 'fd-${settings.organizationTag}-${settings.Network.FrontDoor.profileName}-${settings.environment}'
+  name: '${settings.resourceTag.frontDoor}${settings.organizationTag}${settings.Network.FrontDoor.profileName}${settings.environment}'
   location: settings.Network.FrontDoor.location
   tags: settings.standardTags
   sku: settings.Network.FrontDoor.sku

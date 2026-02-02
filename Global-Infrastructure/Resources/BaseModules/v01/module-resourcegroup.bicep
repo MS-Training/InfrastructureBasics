@@ -25,15 +25,10 @@ param resourceGroupName string
 @secure()
 param settings object
 
-@description('Prefix for the resource to be created')
-param resourcePrefix string = 'rg'
-
-
-
-/////////////////////////////////////////////////////
+  /////////////////////////////////////////////////////
 // Variables
 /////////////////////////////////////////////////////
-var resourceGroupFullName = '${resourcePrefix}-${settings.organizationTag}-${settings.environment}-${resourceGroupName}'
+var resourceGroupFullName = '${settings.resourceTag.resourceGroup}${settings.organizationTag}${settings.environment}${resourceGroupName}'
 
 /////////////////////////////////////////////////////
 // Create the Resource Group

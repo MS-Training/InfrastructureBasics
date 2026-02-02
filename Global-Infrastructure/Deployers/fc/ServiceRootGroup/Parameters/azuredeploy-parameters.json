@@ -10,6 +10,14 @@
         },
         "settings": {
             "value": {
+                "resourceTag": {
+                    "resourceGroup": "rg",
+                    "storageAccount": "st",
+                    "frontDoor": "fd",
+                    "virtualNetwork": "vnet",
+                    "subnet": "subnet",
+                    "networkSecurityGroup": "nsg"
+                },
                 "organizationTag": "fc",
                 "environment": "dev",
                 "location": "eastus",
@@ -24,7 +32,6 @@
                         "comment": "Settings for the Network Resource Group",
                         "name": "fullcodenetwork"
                     },
-                    "addressPrefix": "10.0.0.0/16",
                     "FrontDoor": {
                         "comment": "Base Module settings for FrontDoor Deployment",
                         "parameterComments": "Basic Front Door settings to setup Front Door Standard/Premium without any custom endpoints or rules.",
@@ -43,6 +50,118 @@
                         },
                         "properties": {
                             "originResponseTimeoutSeconds": 120
+                        }
+                    },
+                    "VirtualNetwork": {
+                        "Properties": {
+                            "name": "fullcode",
+                            "extendedLocation": {},
+                            "addressSpaces": [
+                                "10.0.0.0/16"
+                            ],
+                            "ddosProtectionPlanEnabled": false,
+                            "defaultServiceEndpoints": [
+                                {
+                                    "service": "Microsoft.AzureActiveDirectory"
+                                },
+                                {
+                                    "service": "Microsoft.AzureCosmosDB"
+                                },
+                                {
+                                    "service": "Microsoft.CognitiveServices"
+                                },
+                                {
+                                    "service": "Microsoft.ContainerRegistry"
+                                },
+                                {
+                                    "service": "Microsoft.EventHub"
+                                },
+                                {
+                                    "service": "Microsoft.KeyVault"
+                                },
+                                {
+                                    "service": "Microsoft.ServiceBus"
+                                },
+                                {
+                                    "service": "Microsoft.Sql"
+                                },
+                                {
+                                    "service": "Microsoft.Storage"
+                                },
+                                {
+                                    "service": "Microsoft.Web"
+                                }
+                            ],
+                            "subNets": [
+                                {
+                                    "name": "application",
+                                    "addressRange": "10.0.0.0/22",
+                                    "networkSecurityGroup": {
+                                        "comment": "The network security group name should correspond to the Subnet that will be assigned to its usage. Example Subnet00 would have an nsg called nsgSubnet00",
+                                        "name": "applicationsg",
+                                        "RuleList": [
+                                            {
+                                                "name": "BlockAll",
+                                                "description": "block all traffic except what we've explicitly allow",
+                                                "direction": "Inbound",
+                                                "priority": 4095,
+                                                "sourceAddressPrefix": "*",
+                                                "destinationAddressPrefix": "*",
+                                                "sourcePortRange": "*",
+                                                "destinationPortRange": "3389",
+                                                "access": "Deny",
+                                                "protocol": "*"
+                                            },
+                                            {
+                                                "name": "VNetRDP",
+                                                "description": "Allow RDP within the net",
+                                                "direction": "Inbound",
+                                                "priority": 3960,
+                                                "sourceAddressPrefix": "*",
+                                                "destinationAddressPrefix": "*",
+                                                "sourcePortRange": "*",
+                                                "destinationPortRange": "3389-4500",
+                                                "access": "Deny",
+                                                "protocol": "*"
+                                            }
+                                        ]
+                                    }
+                                },
+                                {
+                                    "name": "data",
+                                    "addressRange": "10.0.4.0/22",
+                                    "networkSecurityGroup": {
+                                        "comment": "The network security group name should correspond to the Subnet that will be assigned to its usage. Example Subnet00 would have an nsg called nsgSubnet00",
+                                        "name": "datasg",
+                                        "RuleList": [
+                                            {
+                                                "name": "BlockAll",
+                                                "description": "block all traffic except what we've explicitly allow",
+                                                "direction": "Inbound",
+                                                "priority": 4095,
+                                                "sourceAddressPrefix": "*",
+                                                "destinationAddressPrefix": "*",
+                                                "sourcePortRange": "*",
+                                                "destinationPortRange": "3389",
+                                                "access": "Deny",
+                                                "protocol": "*"
+                                            },
+                                            {
+                                                "name": "VNetRDP",
+                                                "description": "Allow RDP within the net",
+                                                "direction": "Inbound",
+                                                "priority": 3960,
+                                                "sourceAddressPrefix": "*",
+                                                "destinationAddressPrefix": "*",
+                                                "sourcePortRange": "*",
+                                                "destinationPortRange": "3389-4500",
+                                                "access": "Deny",
+                                                "protocol": "*"
+                                            }
+                                        ]
+                                    }
+                                }
+                            ]
                         }
                     }
                 },

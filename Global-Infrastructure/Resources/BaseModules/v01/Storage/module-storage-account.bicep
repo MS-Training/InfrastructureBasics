@@ -1,4 +1,4 @@
-import { storageAccountOutputType } from './types.bicep'
+import { storageAccountOutputType } from '../types.bicep'
 
 @description('The Secure Object that contains the settings to be passed to the module')
 @secure()
@@ -7,7 +7,8 @@ param settings object
 @description('The Storage Account settings object')
 param storageAccount object
 
-var storageAccountName = 'st${settings.organizationTag}${storageAccount.name}${settings.environment}'
+
+var storageAccountName = '${settings.resourceTag.storageAccount}${settings.organizationTag}${storageAccount.name}${settings.environment}'
 
 // ============================================================================
 // Storage Account

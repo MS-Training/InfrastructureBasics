@@ -41,7 +41,7 @@ Write-Output $Parameters -Verbose
 $Subscription = Get-AzSubscription -SubscriptionId "a897c71d-73a0-4b90-b084-9d2b39eee4eb"
 Set-AzContext -SubscriptionObject $Subscription
 
-$Location = "eastus2"
+$Location = "eastus"
 #will forcibly remove a resource group
 #Remove-AzResourceGroup $ResourceGroup  -Force -Verbose
 
@@ -53,6 +53,8 @@ $rgDeployment = New-AzDeployment -Name $DeploymentName -Location $Location -Temp
 
 Write-Output $rgDeployment
 
+
+az bicep build --file $Template
 
 
 
