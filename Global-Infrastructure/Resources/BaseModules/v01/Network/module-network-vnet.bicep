@@ -1,3 +1,9 @@
+
+
+import {
+virtualNetworkOutputType
+} from '../../../../Resources/BaseModules/v01/types.bicep'
+
 @description('The Secure Object that contains the settings to be passed to the module')
 @secure()
 param settings object
@@ -47,3 +53,21 @@ resource VirtualNetwork 'Microsoft.Network/virtualNetworks@2025-05-01' = {
     enableDdosProtection: settings.Network.VirtualNetwork.Properties.ddosProtectionPlanEnabled
   }
 }
+
+
+
+
+
+
+@description('The Virtual Network output with necessary properties')
+output virtualNetworkCreated virtualNetworkOutputType = {
+  vnetId: VirtualNetwork.id
+  vnetName: VirtualNetwork.name
+  applicationSubnetId: VirtualNetwork.properties.subnets[0].id
+  dataSubnetId: VirtualNetwork.properties.subnets[1].id
+  addressPrefixes: VirtualNetwork.properties.addressSpace.addressPrefixes
+  provisioningState: VirtualNetwork.properties.provisioningState
+  resourceGuid: VirtualNetwork.properties.resourceGuid
+}
+
+

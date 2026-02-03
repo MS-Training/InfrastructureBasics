@@ -1,0 +1,822 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+  "languageVersion": "2.0",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.39.26.7824",
+      "templateHash": "9182547803397997018"
+    }
+  },
+  "definitions": {
+    "deployBicepCompleteOutputType": {
+      "type": "object",
+      "properties": {
+        "networkResourceGroupCreated": {
+          "$ref": "#/definitions/resourceGroupOutputType",
+          "nullable": true,
+          "metadata": {
+            "description": "Resource Group deployment output"
+          }
+        },
+        "frontDoorCreated": {
+          "$ref": "#/definitions/frontDoorMinimalOutputType",
+          "nullable": true,
+          "metadata": {
+            "description": "Front Door deployment output"
+          }
+        },
+        "defaultStorageAccountCreated": {
+          "$ref": "#/definitions/storageAccountOutputType",
+          "nullable": true,
+          "metadata": {
+            "description": "Default Storage Account Output"
+          }
+        },
+        "virtualNetworkCreated": {
+          "type": "object",
+          "nullable": true,
+          "metadata": {
+            "description": "Virtual Network Output"
+          }
+        },
+        "subnetsCreated": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          },
+          "metadata": {
+            "description": "Array of Subnets created in the Virtual Network"
+          }
+        }
+      },
+      "metadata": {
+        "description": "The complete output type for the deploy.bicep file",
+        "__bicep_imported_from!": {
+          "sourceTemplate": "../../../../Resources/BaseModules/v01/types.bicep"
+        }
+      }
+    },
+    "frontDoorMinimalOutputType": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "metadata": {
+            "description": "The full URL to access the Front Door Endpoint"
+          }
+        },
+        "profileId": {
+          "type": "string",
+          "metadata": {
+            "description": "Front Door CDN profile resource ID"
+          }
+        },
+        "profileName": {
+          "type": "string",
+          "metadata": {
+            "description": "Front Door profile name"
+          }
+        },
+        "frontDoorId": {
+          "type": "string",
+          "metadata": {
+            "description": "Front Door unique identifier (use for backend access restrictions)"
+          }
+        },
+        "endpointHostName": {
+          "type": "string",
+          "metadata": {
+            "description": "Front Door endpoint hostname"
+          }
+        },
+        "endpointId": {
+          "type": "string",
+          "metadata": {
+            "description": "Front Door endpoint resource ID"
+          }
+        }
+      },
+      "metadata": {
+        "description": "The output type for a Minimal Front Door Module",
+        "__bicep_imported_from!": {
+          "sourceTemplate": "../../../../Resources/BaseModules/v01/types.bicep"
+        }
+      }
+    },
+    "resourceGroupOutputType": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "metadata": {
+            "description": "The name of the Resource Group"
+          }
+        },
+        "id": {
+          "type": "string",
+          "metadata": {
+            "description": "The resource ID of the Resource Group"
+          }
+        },
+        "location": {
+          "type": "string",
+          "metadata": {
+            "description": "The Azure region where the Resource Group is deployed"
+          }
+        },
+        "resourceGroupFullName": {
+          "type": "string",
+          "metadata": {
+            "description": "The full name of the Resource Group including prefixes"
+          }
+        }
+      },
+      "metadata": {
+        "description": "The output type for a Resource Group Module",
+        "__bicep_imported_from!": {
+          "sourceTemplate": "../../../../Resources/BaseModules/v01/types.bicep"
+        }
+      }
+    },
+    "storageAccountOutputType": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "metadata": {
+            "description": "Storage Account resource ID"
+          }
+        },
+        "name": {
+          "type": "string",
+          "metadata": {
+            "description": "Storage Account name"
+          }
+        },
+        "endpoints": {
+          "type": "object",
+          "properties": {
+            "blob": {
+              "type": "string",
+              "metadata": {
+                "description": "Blob service endpoint URL"
+              }
+            },
+            "file": {
+              "type": "string",
+              "metadata": {
+                "description": "File service endpoint URL"
+              }
+            },
+            "table": {
+              "type": "string",
+              "metadata": {
+                "description": "Table service endpoint URL"
+              }
+            },
+            "queue": {
+              "type": "string",
+              "metadata": {
+                "description": "Queue service endpoint URL"
+              }
+            }
+          },
+          "metadata": {
+            "description": "Storage Account blob service endpoints"
+          }
+        }
+      },
+      "metadata": {
+        "description": "The output type for a Storage Account Module",
+        "__bicep_imported_from!": {
+          "sourceTemplate": "../../../../Resources/BaseModules/v01/types.bicep"
+        }
+      }
+    }
+  },
+  "parameters": {
+    "deploymentFlags": {
+      "type": "object",
+      "metadata": {
+        "description": "An object containing deployment flags to control module behavior."
+      }
+    },
+    "settings": {
+      "type": "secureObject",
+      "metadata": {
+        "description": "The Secure Object that contains the settings to be passed to the Network Resource Group"
+      }
+    },
+    "deploymentGuid": {
+      "type": "string",
+      "defaultValue": "[newGuid()]",
+      "metadata": {
+        "description": "A unique identifier for the deployment. Defaults to a new GUID."
+      }
+    }
+  },
+  "variables": {
+    "networkResourceGroupName": "[format('{0}{1}{2}{3}', parameters('settings').resourceTag.resourceGroup, parameters('settings').organizationTag, parameters('settings').environment, parameters('settings').Network.ResourceGroup.name)]",
+    "templateSpecsResourceGroupName": "[format('{0}{1}{2}{3}', parameters('settings').resourceTag.resourceGroup, parameters('settings').organizationTag, parameters('settings').environment, parameters('settings').TemplateSpec.ResourceGroup.name)]"
+  },
+  "resources": {
+    "networkResourceGroup": {
+      "existing": true,
+      "type": "Microsoft.Resources/resourceGroups",
+      "apiVersion": "2025-04-01",
+      "name": "[variables('networkResourceGroupName')]",
+      "dependsOn": [
+        "newtworkResourceGroupModule"
+      ]
+    },
+    "newtworkResourceGroupModule": {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "[format('networkrg{0}-{1}', parameters('settings').Network.ResourceGroup.name, parameters('deploymentGuid'))]",
+      "location": "[deployment().location]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "resourceGroupName": {
+            "value": "[parameters('settings').Network.ResourceGroup.name]"
+          },
+          "settings": {
+            "value": "[parameters('settings')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+          "languageVersion": "2.0",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.39.26.7824",
+              "templateHash": "10838229235669815423"
+            }
+          },
+          "definitions": {
+            "resourceGroupOutputType": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "metadata": {
+                    "description": "The name of the Resource Group"
+                  }
+                },
+                "id": {
+                  "type": "string",
+                  "metadata": {
+                    "description": "The resource ID of the Resource Group"
+                  }
+                },
+                "location": {
+                  "type": "string",
+                  "metadata": {
+                    "description": "The Azure region where the Resource Group is deployed"
+                  }
+                },
+                "resourceGroupFullName": {
+                  "type": "string",
+                  "metadata": {
+                    "description": "The full name of the Resource Group including prefixes"
+                  }
+                }
+              },
+              "metadata": {
+                "description": "The output type for a Resource Group Module",
+                "__bicep_imported_from!": {
+                  "sourceTemplate": "types.bicep"
+                }
+              }
+            }
+          },
+          "parameters": {
+            "resourceGroupName": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the Resource Group to be created"
+              }
+            },
+            "settings": {
+              "type": "secureObject",
+              "metadata": {
+                "description": "The Secure Object that contains the settings to be passed to the Network Resource Group"
+              }
+            }
+          },
+          "variables": {
+            "resourceGroupFullName": "[format('{0}{1}{2}{3}', parameters('settings').resourceTag.resourceGroup, parameters('settings').organizationTag, parameters('settings').environment, parameters('resourceGroupName'))]"
+          },
+          "resources": {
+            "CreatedResourceGroup": {
+              "type": "Microsoft.Resources/resourceGroups",
+              "apiVersion": "2025-04-01",
+              "name": "[variables('resourceGroupFullName')]",
+              "location": "[parameters('settings').location]",
+              "managedBy": "[parameters('settings').managedBy]",
+              "properties": {},
+              "tags": "[parameters('settings').standardTags]"
+            }
+          },
+          "outputs": {
+            "resourceGroupCreated": {
+              "$ref": "#/definitions/resourceGroupOutputType",
+              "value": {
+                "name": "[coalesce(variables('resourceGroupFullName'), '')]",
+                "id": "[coalesce(subscriptionResourceId('Microsoft.Resources/resourceGroups', variables('resourceGroupFullName')), '')]",
+                "location": "[coalesce(tryGet(reference('CreatedResourceGroup', '2025-04-01', 'full'), 'location'), '')]",
+                "resourceGroupFullName": "[variables('resourceGroupFullName')]"
+              }
+            }
+          }
+        }
+      }
+    },
+    "frontDoor": {
+      "condition": "[parameters('deploymentFlags').deployFrontDoor]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "[format('{0}{1}-{2}', parameters('settings').resourceTag.frontDoor, parameters('settings').Network.FrontDoor.profileName, parameters('deploymentGuid'))]",
+      "resourceGroup": "[variables('networkResourceGroupName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "settings": {
+            "value": "[parameters('settings')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "languageVersion": "2.0",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.39.26.7824",
+              "templateHash": "14767496631701256063"
+            }
+          },
+          "definitions": {
+            "frontDoorMinimalOutputType": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "metadata": {
+                    "description": "The full URL to access the Front Door Endpoint"
+                  }
+                },
+                "profileId": {
+                  "type": "string",
+                  "metadata": {
+                    "description": "Front Door CDN profile resource ID"
+                  }
+                },
+                "profileName": {
+                  "type": "string",
+                  "metadata": {
+                    "description": "Front Door profile name"
+                  }
+                },
+                "frontDoorId": {
+                  "type": "string",
+                  "metadata": {
+                    "description": "Front Door unique identifier (use for backend access restrictions)"
+                  }
+                },
+                "endpointHostName": {
+                  "type": "string",
+                  "metadata": {
+                    "description": "Front Door endpoint hostname"
+                  }
+                },
+                "endpointId": {
+                  "type": "string",
+                  "metadata": {
+                    "description": "Front Door endpoint resource ID"
+                  }
+                }
+              },
+              "metadata": {
+                "description": "The output type for a Minimal Front Door Module",
+                "__bicep_imported_from!": {
+                  "sourceTemplate": "../types.bicep"
+                }
+              }
+            }
+          },
+          "parameters": {
+            "settings": {
+              "type": "secureObject",
+              "metadata": {
+                "description": "The Secure Object that contains the settings to be passed to the module"
+              }
+            }
+          },
+          "resources": {
+            "cdnProfile": {
+              "type": "Microsoft.Cdn/profiles",
+              "apiVersion": "2025-06-01",
+              "name": "[format('{0}{1}{2}{3}', parameters('settings').resourceTag.frontDoor, parameters('settings').organizationTag, parameters('settings').Network.FrontDoor.profileName, parameters('settings').environment)]",
+              "location": "[parameters('settings').Network.FrontDoor.location]",
+              "tags": "[parameters('settings').standardTags]",
+              "sku": "[parameters('settings').Network.FrontDoor.sku]",
+              "properties": "[parameters('settings').Network.FrontDoor.properties]"
+            },
+            "endpoint": {
+              "condition": "[contains(parameters('settings').Network.FrontDoor, 'endpoint')]",
+              "type": "Microsoft.Cdn/profiles/afdEndpoints",
+              "apiVersion": "2025-06-01",
+              "name": "[format('{0}/{1}', format('{0}{1}{2}{3}', parameters('settings').resourceTag.frontDoor, parameters('settings').organizationTag, parameters('settings').Network.FrontDoor.profileName, parameters('settings').environment), parameters('settings').Network.FrontDoor.endpoint.name)]",
+              "location": "[parameters('settings').Network.FrontDoor.location]",
+              "tags": "[parameters('settings').standardTags]",
+              "properties": "[parameters('settings').Network.FrontDoor.endpoint.properties]",
+              "dependsOn": [
+                "cdnProfile"
+              ],
+              "metadata": {
+                "description": "Azure Front Door Endpoint that is the public URL. It is the entry point for all traffic."
+              }
+            }
+          },
+          "outputs": {
+            "frontDoorCreated": {
+              "$ref": "#/definitions/frontDoorMinimalOutputType",
+              "metadata": {
+                "description": "Front Door outputs containing profile and endpoint information"
+              },
+              "value": {
+                "url": "[format('https://{0}', reference('endpoint').hostName)]",
+                "profileId": "[resourceId('Microsoft.Cdn/profiles', format('{0}{1}{2}{3}', parameters('settings').resourceTag.frontDoor, parameters('settings').organizationTag, parameters('settings').Network.FrontDoor.profileName, parameters('settings').environment))]",
+                "profileName": "[format('{0}{1}{2}{3}', parameters('settings').resourceTag.frontDoor, parameters('settings').organizationTag, parameters('settings').Network.FrontDoor.profileName, parameters('settings').environment)]",
+                "frontDoorId": "[reference('cdnProfile').frontDoorId]",
+                "endpointHostName": "[reference('endpoint').hostName]",
+                "endpointId": "[resourceId('Microsoft.Cdn/profiles/afdEndpoints', format('{0}{1}{2}{3}', parameters('settings').resourceTag.frontDoor, parameters('settings').organizationTag, parameters('settings').Network.FrontDoor.profileName, parameters('settings').environment), parameters('settings').Network.FrontDoor.endpoint.name)]"
+              }
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "newtworkResourceGroupModule"
+      ]
+    },
+    "virtualNetwork": {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "[format('vnet-{0}-{1}', parameters('settings').Network.VirtualNetwork.Properties.name, parameters('deploymentGuid'))]",
+      "resourceGroup": "[variables('networkResourceGroupName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "settings": {
+            "value": "[parameters('settings')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.39.26.7824",
+              "templateHash": "10297998385359903885"
+            }
+          },
+          "parameters": {
+            "settings": {
+              "type": "secureObject",
+              "metadata": {
+                "description": "The Secure Object that contains the settings to be passed to the module"
+              }
+            },
+            "deploymentGuid": {
+              "type": "string",
+              "defaultValue": "[newGuid()]",
+              "metadata": {
+                "description": "A unique identifier for the deployment. Defaults to a new GUID."
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/virtualNetworks",
+              "apiVersion": "2025-05-01",
+              "name": "[parameters('settings').Network.VirtualNetwork.Properties.name]",
+              "location": "[parameters('settings').location]",
+              "extendedLocation": "[if(empty(parameters('settings').Network.VirtualNetwork.Properties.extendedLocation), json('null'), parameters('settings').Network.VirtualNetwork.Properties.extendedLocation)]",
+              "tags": "[parameters('settings').standardTags]",
+              "properties": {
+                "copy": [
+                  {
+                    "name": "subnets",
+                    "count": "[length(parameters('settings').Network.VirtualNetwork.Properties.subNets)]",
+                    "input": {
+                      "name": "[format('{0}{1}', parameters('settings').resourceTag.subnet, parameters('settings').Network.VirtualNetwork.Properties.subNets[copyIndex('subnets')].name)]",
+                      "properties": {
+                        "addressPrefix": "[parameters('settings').Network.VirtualNetwork.Properties.subNets[copyIndex('subnets')].addressRange]",
+                        "serviceEndpoints": "[parameters('settings').Network.VirtualNetwork.Properties.defaultServiceEndpoints]",
+                        "networkSecurityGroup": {
+                          "id": "[reference(resourceId('Microsoft.Resources/deployments', format('{0}nsg{1}', parameters('settings').Network.VirtualNetwork.Properties.subNets[copyIndex('subnets')].name, parameters('deploymentGuid'))), '2025-04-01').outputs.networkSecurityGroup.value]"
+                        }
+                      }
+                    }
+                  }
+                ],
+                "addressSpace": {
+                  "addressPrefixes": "[parameters('settings').Network.VirtualNetwork.Properties.addressSpaces]"
+                },
+                "enableDdosProtection": "[parameters('settings').Network.VirtualNetwork.Properties.ddosProtectionPlanEnabled]"
+              },
+              "dependsOn": [
+                "NetworkSecurityGroup"
+              ]
+            },
+            {
+              "copy": {
+                "name": "NetworkSecurityGroup",
+                "count": "[length(parameters('settings').Network.VirtualNetwork.Properties.subNets)]"
+              },
+              "type": "Microsoft.Resources/deployments",
+              "apiVersion": "2025-04-01",
+              "name": "[format('{0}nsg{1}', parameters('settings').Network.VirtualNetwork.Properties.subNets[copyIndex()].name, parameters('deploymentGuid'))]",
+              "properties": {
+                "expressionEvaluationOptions": {
+                  "scope": "inner"
+                },
+                "mode": "Incremental",
+                "parameters": {
+                  "settings": {
+                    "value": "[parameters('settings')]"
+                  },
+                  "networkSecurityGroup": {
+                    "value": "[parameters('settings').Network.VirtualNetwork.Properties.subNets[copyIndex()].networkSecurityGroup]"
+                  }
+                },
+                "template": {
+                  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                  "contentVersion": "1.0.0.0",
+                  "metadata": {
+                    "_generator": {
+                      "name": "bicep",
+                      "version": "0.39.26.7824",
+                      "templateHash": "1018831456621849961"
+                    }
+                  },
+                  "parameters": {
+                    "settings": {
+                      "type": "secureObject",
+                      "metadata": {
+                        "description": "The Secure Object that contains the settings to be passed to the module"
+                      }
+                    },
+                    "networkSecurityGroup": {
+                      "type": "object",
+                      "metadata": {
+                        "description": "The network security group objects to create"
+                      }
+                    }
+                  },
+                  "resources": [
+                    {
+                      "type": "Microsoft.Network/networkSecurityGroups",
+                      "apiVersion": "2025-05-01",
+                      "name": "[parameters('networkSecurityGroup').name]",
+                      "location": "[parameters('settings').location]",
+                      "tags": "[parameters('settings').standardTags]",
+                      "properties": {
+                        "copy": [
+                          {
+                            "name": "securityRules",
+                            "count": "[length(parameters('networkSecurityGroup').RuleList)]",
+                            "input": {
+                              "type": "Microsoft.Network/networkSecurityGroups",
+                              "id": "[format('Rule{0}{1}', parameters('networkSecurityGroup').name, parameters('networkSecurityGroup').RuleList[copyIndex('securityRules')].name)]",
+                              "name": "[parameters('networkSecurityGroup').RuleList[copyIndex('securityRules')].name]",
+                              "properties": {
+                                "description": "[parameters('networkSecurityGroup').RuleList[copyIndex('securityRules')].description]",
+                                "priority": "[parameters('networkSecurityGroup').RuleList[copyIndex('securityRules')].priority]",
+                                "protocol": "[parameters('networkSecurityGroup').RuleList[copyIndex('securityRules')].protocol]",
+                                "sourcePortRange": "[parameters('networkSecurityGroup').RuleList[copyIndex('securityRules')].sourcePortRange]",
+                                "destinationPortRange": "[parameters('networkSecurityGroup').RuleList[copyIndex('securityRules')].destinationPortRange]",
+                                "sourceAddressPrefix": "[parameters('networkSecurityGroup').RuleList[copyIndex('securityRules')].sourceAddressPrefix]",
+                                "destinationAddressPrefix": "[parameters('networkSecurityGroup').RuleList[copyIndex('securityRules')].destinationAddressPrefix]",
+                                "access": "[parameters('networkSecurityGroup').RuleList[copyIndex('securityRules')].access]",
+                                "direction": "[parameters('networkSecurityGroup').RuleList[copyIndex('securityRules')].direction]"
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "outputs": {
+                    "networkSecurityGroup": {
+                      "type": "string",
+                      "value": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroup').name)]"
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "outputs": {
+            "virtualNetwork": {
+              "type": "object",
+              "metadata": {
+                "description": "The Virtual Network resource"
+              },
+              "value": "[reference(resourceId('Microsoft.Network/virtualNetworks', parameters('settings').Network.VirtualNetwork.Properties.name), '2025-05-01', 'full')]"
+            },
+            "subnets": {
+              "type": "array",
+              "metadata": {
+                "description": "Array of subnets created in the virtual network"
+              },
+              "value": "[reference(resourceId('Microsoft.Network/virtualNetworks', parameters('settings').Network.VirtualNetwork.Properties.name), '2025-05-01').subnets]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "newtworkResourceGroupModule"
+      ]
+    },
+    "defaultStorageAccountModule": {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "[format('st-{0}-{1}', parameters('settings').StorageAccounts.NetworkStorageAccount.name, parameters('deploymentGuid'))]",
+      "resourceGroup": "[variables('networkResourceGroupName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "settings": {
+            "value": "[parameters('settings')]"
+          },
+          "storageAccount": {
+            "value": "[parameters('settings').StorageAccounts.NetworkStorageAccount]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "languageVersion": "2.0",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.39.26.7824",
+              "templateHash": "6492570199223101712"
+            }
+          },
+          "definitions": {
+            "storageAccountOutputType": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "metadata": {
+                    "description": "Storage Account resource ID"
+                  }
+                },
+                "name": {
+                  "type": "string",
+                  "metadata": {
+                    "description": "Storage Account name"
+                  }
+                },
+                "endpoints": {
+                  "type": "object",
+                  "properties": {
+                    "blob": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "Blob service endpoint URL"
+                      }
+                    },
+                    "file": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "File service endpoint URL"
+                      }
+                    },
+                    "table": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "Table service endpoint URL"
+                      }
+                    },
+                    "queue": {
+                      "type": "string",
+                      "metadata": {
+                        "description": "Queue service endpoint URL"
+                      }
+                    }
+                  },
+                  "metadata": {
+                    "description": "Storage Account blob service endpoints"
+                  }
+                }
+              },
+              "metadata": {
+                "description": "The output type for a Storage Account Module",
+                "__bicep_imported_from!": {
+                  "sourceTemplate": "../types.bicep"
+                }
+              }
+            }
+          },
+          "parameters": {
+            "settings": {
+              "type": "secureObject",
+              "metadata": {
+                "description": "The Secure Object that contains the settings to be passed to the module"
+              }
+            },
+            "storageAccount": {
+              "type": "object",
+              "metadata": {
+                "description": "The Storage Account settings object"
+              }
+            }
+          },
+          "variables": {
+            "storageAccountName": "[format('{0}{1}{2}{3}', parameters('settings').resourceTag.storageAccount, parameters('settings').organizationTag, parameters('storageAccount').name, parameters('settings').environment)]"
+          },
+          "resources": {
+            "createdStorageAccount": {
+              "type": "Microsoft.Storage/storageAccounts",
+              "apiVersion": "2023-01-01",
+              "name": "[variables('storageAccountName')]",
+              "location": "[parameters('storageAccount').location]",
+              "tags": "[parameters('settings').standardTags]",
+              "sku": "[parameters('storageAccount').sku]",
+              "kind": "[parameters('storageAccount').kind]",
+              "properties": "[parameters('storageAccount').properties]"
+            },
+            "blobServices": {
+              "type": "Microsoft.Storage/storageAccounts/blobServices",
+              "apiVersion": "2023-01-01",
+              "name": "[format('{0}/{1}', variables('storageAccountName'), 'default')]",
+              "properties": "[parameters('storageAccount').BlobStorage.properties]",
+              "dependsOn": [
+                "createdStorageAccount"
+              ]
+            }
+          },
+          "outputs": {
+            "storageAccountCreated": {
+              "$ref": "#/definitions/storageAccountOutputType",
+              "metadata": {
+                "description": "Storage account outputs"
+              },
+              "value": {
+                "id": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
+                "name": "[variables('storageAccountName')]",
+                "endpoints": {
+                  "blob": "[reference('createdStorageAccount').primaryEndpoints.blob]",
+                  "file": "[reference('createdStorageAccount').primaryEndpoints.file]",
+                  "table": "[reference('createdStorageAccount').primaryEndpoints.table]",
+                  "queue": "[reference('createdStorageAccount').primaryEndpoints.queue]"
+                }
+              }
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "newtworkResourceGroupModule"
+      ],
+      "metadata": {
+        "description": "Storage account module for the network resource group default storage account"
+      }
+    }
+  },
+  "outputs": {
+    "deploymentComplete": {
+      "$ref": "#/definitions/deployBicepCompleteOutputType",
+      "value": {
+        "frontDoorCreated": "[if(parameters('deploymentFlags').deployFrontDoor, reference('frontDoor').outputs.frontDoorCreated.value, createObject('url', '', 'profileId', '', 'profileName', '', 'frontDoorId', '', 'endpointHostName', '', 'endpointId', ''))]",
+        "networkResourceGroupCreated": "[reference('newtworkResourceGroupModule').outputs.resourceGroupCreated.value]",
+        "defaultStorageAccountCreated": "[reference('defaultStorageAccountModule').outputs.storageAccountCreated.value]",
+        "virtualNetworkCreated": "[reference('virtualNetwork').outputs.virtualNetwork.value]",
+        "subnetsCreated": "[reference('virtualNetwork').outputs.subnets.value]"
+      }
+    }
+  }
+}

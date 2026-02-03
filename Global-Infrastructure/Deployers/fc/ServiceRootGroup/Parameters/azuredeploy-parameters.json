@@ -5,7 +5,7 @@
         "deploymentFlags": {
             "value": {
                 "comment": "Deployment flags to control which resources are deployed",
-                "deployFrontDoor": true
+                "deployFrontDoor": false
             }
         },
         "settings": {
@@ -60,6 +60,7 @@
                                 "10.0.0.0/16"
                             ],
                             "ddosProtectionPlanEnabled": false,
+                            "privateEndpointVNetPolicies": "Enabled",
                             "defaultServiceEndpoints": [
                                 {
                                     "service": "Microsoft.AzureActiveDirectory"
@@ -204,6 +205,23 @@
                                     "days": 7
                                 }
                             }
+                        }
+                    }
+                },
+                "KeyVaults": {
+                    "comment": "Settings for Key Vaults used in the deployment",
+                    "defaultKeyVault": {
+                        "name": "fcdefaultkv",
+                        "location": "eastus",
+                        "sku": {
+                            "name": "premium"
+                        },
+                        "properties": {
+                            "enabledForDeployment": true,
+                            "enabledForDiskEncryption": true,
+                            "enabledForTemplateDeployment": true,
+                            "enableRbacAuthorization": true,
+                            "tenantId": "<your-tenant-id>"
                         }
                     }
                 }

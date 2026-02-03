@@ -6,6 +6,8 @@ import {
   resourceGroupOutputType
   frontDoorMinimalOutputType
   storageAccountOutputType
+  deployBicepCompleteOutputType
+  virtualNetworkOutputType
 } from '../../../../Resources/BaseModules/v01/types.bicep'
 
 targetScope = 'subscription'
@@ -30,7 +32,7 @@ param deploymentGuid string = newGuid()
 // Calculate the resource group name (must be known at compile time for 'existing' reference)
 
 var networkResourceGroupName = '${settings.resourceTag.resourceGroup}${settings.organizationTag}${settings.environment}${settings.Network.ResourceGroup.name}'
-var templateSpecsResourceGroupName = '${settings.resourceTag.resourceGroup}${settings.organizationTag}${settings.environment}${settings.TemplateSpec.ResourceGroup.name}'
+//var templateSpecsResourceGroupName = '${settings.resourceTag.resourceGroup}${settings.organizationTag}${settings.environment}${settings.TemplateSpec.ResourceGroup.name}'
 
 module newtworkResourceGroupModule '../../../../Resources/BaseModules/v01/module-resourcegroup.bicep' = {
   name: 'networkrg${settings.Network.ResourceGroup.name}-${deploymentGuid}'
@@ -69,14 +71,17 @@ module frontDoor '../../../../Resources/BaseModules/v01/Network/module-network-m
 // If front door was not created in this operation, then just default the values
 /////////////////////////////////////////////////////
 var frontDoorOutputs frontDoorMinimalOutputType = deploymentFlags.deployFrontDoor ? frontDoor.outputs.frontDoorCreated : {
-  frontDoorId: ''
-  frontDoorName: ''
-  frontDoorEndpointHostName: ''
-}
+    url: ''
+    profileId: ''
+    profileName: ''
+    frontDoorId: ''
+    endpointHostName: ''
+    endpointId: ''
+  }
 
 
 
-module virtuanNetwork '../../../../Resources/BaseModules/v01/Network/module-network-vnet.bicep' = {
+module virtualNetwork '../../../../Resources/BaseModules/v01/Network/module-network-vnet.bicep' = {
   scope: networkResourceGroup
   name: 'vnet-${settings.Network.VirtualNetwork.Properties.name}-${deploymentGuid}'
   params: {
@@ -85,24 +90,30 @@ module virtuanNetwork '../../../../Resources/BaseModules/v01/Network/module-netw
   dependsOn: [newtworkResourceGroupModule]
 }
 
+var virtualNetworkOuts virtualNetworkOutputType = virtualNetwork.outputs.virtualNetworkCreated
+
 
 // ============================================================================
-// Step 4: Create Resource Group for the Template Specs deployments
+// Create Resource Group for the Template Specs deployments :  currently we are not using Template Specs. Put this on hold for now.
 // ============================================================================
-module templateSpecsResourceGroupModule '../../../../Resources/BaseModules/v01/module-resourcegroup.bicep' = {
-  name: 'temprg${settings.TemplateSpec.ResourceGroup.name}-${deploymentGuid}'
-  params: {
-    resourceGroupName: settings.TemplateSpec.ResourceGroup.name
-    settings: settings
+/*
+  module templateSpecsResourceGroupModule '../../../../Resources/BaseModules/v01/module-resourcegroup.bicep' = {
+    name: 'temprg${settings.TemplateSpec.ResourceGroup.name}-${deploymentGuid}'
+    params: {
+      resourceGroupName: settings.TemplateSpec.ResourceGroup.name
+      settings: settings
+    }
   }
-}
 
-var templateSpecsResourceGroupOuts resourceGroupOutputType = templateSpecsResourceGroupModule.outputs.resourceGroupCreated
+  var templateSpecsResourceGroupOuts resourceGroupOutputType = templateSpecsResourceGroupModule.outputs.resourceGroupCreated
 
-resource templateSpecsResourceGroup 'Microsoft.Resources/resourceGroups@2025-04-01' existing = {
-  name: templateSpecsResourceGroupName
-  dependsOn: [templateSpecsResourceGroupModule]
-}
+  resource templateSpecsResourceGroup 'Microsoft.Resources/resourceGroups@2025-04-01' existing = {
+    name: templateSpecsResourceGroupName
+    dependsOn: [templateSpecsResourceGroupModule]
+  }
+*/
+
+
 
 @description('Storage account module for the network resource group default storage account')
 module defaultStorageAccountModule '../../../../Resources/BaseModules/v01/Storage/module-storage-account.bicep' = {
@@ -124,7 +135,11 @@ var defaultStorageAccountOuts storageAccountOutputType = defaultStorageAccountMo
 // Outputs
 // ============================================================================
 
-output frontDoorCreated frontDoorMinimalOutputType = frontDoorOutputs
-output networkResourceGroupCreated resourceGroupOutputType = networkResourceGroupOuts
-output templateSpecsResourceGroupCreated resourceGroupOutputType = templateSpecsResourceGroupOuts
-output defaultStorageAccountCreated storageAccountOutputType = defaultStorageAccountOuts
+output deploymentComplete deployBicepCompleteOutputType = {
+  frontDoorCreated: frontDoorOutputs
+  networkResourceGroupCreated: networkResourceGroupOuts
+  defaultStorageAccountCreated: defaultStorageAccountOuts
+  virtualNetworkCreated: virtualNetworkOuts
+}
+
+
