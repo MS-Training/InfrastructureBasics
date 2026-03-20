@@ -35,7 +35,7 @@ Write-Output $Parameters -Verbose
 #$Subscription = Get-AzSubscription -SubscriptionName "Visual Studio Enterprise Subscription"
 
 #use when you set the entire scope of execution to the subscription
-$Subscription = Get-AzSubscription -SubscriptionId "a897c71d-73a0-4b90-b084-9d2b39eee4eb"
+$Subscription = Get-AzSubscription -SubscriptionId ""
 Set-AzContext -SubscriptionObject $Subscription
 
 $Location = "eastus2"
