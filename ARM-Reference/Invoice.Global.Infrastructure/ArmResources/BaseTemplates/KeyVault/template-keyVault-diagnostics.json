@@ -1,0 +1,52 @@
+﻿{
+  "$schema": "http://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "keyVaultName": {
+      "type": "array"
+    },
+    "workspaceId": {
+      "type": "string"
+    },
+    "retentionDays": {
+      "type": "string"
+    }
+  },
+  "variables": {},
+  "resources": [
+    {
+      "name": "[concat(parameters('keyVaultName')[copyIndex()], '/', 'Microsoft.Insights/DiagnosticSettings_workspace')]",
+      "type": "Microsoft.KeyVault/vaults/providers/diagnosticSettings",
+      "apiVersion": "2017-05-01-preview",
+      "dependsOn": [],
+      "copy": {
+        "name": "AddKeyVaultDiagnosticLoop",
+        "count": "[length(parameters('keyVaultName'))]"
+      },
+      "properties": {
+        "workspaceId": "[parameters('workspaceId')]",
+        "metrics": [
+          {
+            "category": "AllMetrics",
+            "enabled": true,
+            "retentionPolicy": {
+              "enabled": false,
+              "days": "[parameters('retentionDays')]"
+            }
+          }
+        ],
+        "logs": [
+          {
+            "category": "AuditEvent",
+            "enabled": true,
+            "retentionPolicy": {
+              "enabled": false,
+              "days": "[parameters('retentionDays')]"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "outputs": {}
+}

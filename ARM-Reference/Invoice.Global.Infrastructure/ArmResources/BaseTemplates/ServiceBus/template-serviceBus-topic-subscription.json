@@ -1,0 +1,63 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "serviceBusNamespace": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the Service Bus namespace"
+      }
+    },
+    "serviceBusTopicName": {
+      "type": "string",
+      "metadata": {
+        "description": "Topic Name"
+      }
+    },
+    "serviceBusTopicSubscriptionName": {
+      "type": "string",
+      "metadata": {
+        "description": "Subscription Name"
+      }
+    },
+    "serviceBusTopicSubscriptionProperties": {
+      "type": "object",
+      "metadata": {
+        "description": "object with the properties of the topic subscription",
+        "sampleProperties": {
+          "isClientAffine": false,
+          "lockDuration": "PT1M",
+          "requiresSession": false,
+          "defaultMessageTimeToLive": "P10675199DT2H48M5.4775807S",
+          "deadLetteringOnMessageExpiration": false,
+          "deadLetteringOnFilterEvaluationExceptions": true,
+          "maxDeliveryCount": 100,
+          "status": "Active",
+          "enableBatchedOperations": true,
+          "autoDeleteOnIdle": "P10675199DT2H48M5.4775807S"
+        }
+      },
+      "defaultValue": {
+        "isClientAffine": false,
+        "lockDuration": "PT1M",
+        "requiresSession": false,
+        "defaultMessageTimeToLive": "P10675199DT2H48M5.4775807S",
+        "deadLetteringOnMessageExpiration": false,
+        "deadLetteringOnFilterEvaluationExceptions": true,
+        "maxDeliveryCount": 100,
+        "status": "Active",
+        "enableBatchedOperations": true,
+        "autoDeleteOnIdle": "P10675199DT2H48M5.4775807S"
+      }
+    }
+  },
+  "variables": {},
+  "resources": [
+    {
+      "apiVersion": "2024-01-01",
+      "name": "[concat(parameters('serviceBusNamespace'), '/',parameters('serviceBusTopicName'), '/',parameters('serviceBusTopicSubscriptionName'))]",
+      "type": "Microsoft.ServiceBus/Namespaces/Topics/Subscriptions",
+      "properties": "[parameters('serviceBusTopicSubscriptionProperties')]"
+    }
+  ]
+}

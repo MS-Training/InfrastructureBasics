@@ -1,0 +1,152 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "templatespecsBaseResourceId": {
+      "type": "string"
+    },
+    "workspaceID": {
+      "type": "string"
+    },
+    "serviceBusDetails": {
+      "type": "array",
+      "metadata": {
+        "description": {
+          "comments": "In the serviceBusDetails object you will find a collection of Service Bus Namespaces, their Topics and the Topics Subscriptions.",
+          "serviceBusDetails": [
+            {
+              "resourceName": "Service Bus Namespace Name / Service Bus Name",
+              "resourceGroupName": "Resource Group Name",
+              "serviceBusSkuName": "Basic, Standard or Premium",
+              "publicNetworkAccess": "Enabled or Disabled",
+              "disableLocalAuth": "true or false default to true",
+              "topics": [
+                {
+                  "topicName": "NameOfTopicArrayElement0",
+                  "properties": {
+                    "maxMessageSizeInKilobytes": 256,
+                    "defaultMessageTimeToLive": "P14D",
+                    "maxSizeInMegabytes": 2048,
+                    "requiresDuplicateDetection": false,
+                    "duplicateDetectionHistoryTimeWindow": "PT10M",
+                    "enableBatchedOperations": true,
+                    "status": "Active",
+                    "supportOrdering": false,
+                    "autoDeleteOnIdle": "P10675199DT2H48M5.4775807S",
+                    "enablePartitioning": true,
+                    "enableExpress": false
+                  },
+                  "subscriptions": [
+                    {
+                      "name": "SubscriptionName0",
+                      "comments": "The properties object below contains example values.",
+                      "filterRules": [
+                        {
+                          "name": "FilterRuleName0",
+                          "comments": "The properties object below contains example values.",
+                          "properties": {
+                            "action": {},
+                            "filterType": "SqlFilter",
+                            "sqlFilter": {
+                              "sqlExpression": "user.EventType LIKE('%.Invoice.%.v1.Intake')",
+                              "compatibilityLevel": 20
+                            }
+                          }
+                        }
+                      ],
+                      "properties": {
+                        "isClientAffine": false,
+                        "lockDuration": "PT1M",
+                        "requiresSession": false,
+                        "defaultMessageTimeToLive": "P10675199DT2H48M5.4775807S",
+                        "deadLetteringOnMessageExpiration": false,
+                        "deadLetteringOnFilterEvaluationExceptions": true,
+                        "maxDeliveryCount": 10,
+                        "status": "Active",
+                        "enableBatchedOperations": true,
+                        "autoDeleteOnIdle": "P10675199DT2H48M5.4775807S"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  },
+  "variables": {
+  },
+  "resources": [
+    {
+      "comments": "Create the Service Bus Resource here. This has default values that are in the Template. The Diagnostics is also created.",
+      "name": "[concat(parameters('serviceBusDetails') [copyIndex()].resourceName,'-createNamespace')]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('serviceBusDetails') [copyIndex()].resourceGroupName]",
+      "apiVersion": "2022-09-01",
+      "copy": {
+        "name": "NamespaceCopy",
+        "count": "[length(parameters('serviceBusDetails'))]"
+      },
+      "dependsOn": [],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('templatespecsBaseResourceId'), 'ServiceBus-template-serviceBus-namespace', '/versions/v1')]"
+        },
+        "parameters": {
+          "serviceBusNamespace": {
+            "value": "[parameters('serviceBusDetails') [copyIndex()].resourceName]"
+          },
+          "serviceBusSkuName": {
+            "value": "[parameters('serviceBusDetails') [copyIndex()].serviceBusSkuName]"
+          },
+          "publicNetworkAccess": {
+            "value": "[parameters('serviceBusDetails') [copyIndex()].publicNetworkAccess]"
+          },
+          "disableLocalAuth": {
+            "value": "[parameters('serviceBusDetails') [copyIndex()].disableLocalAuth]"
+          },
+          "workSpaceResourceId": {
+            "value": "[parameters('workspaceID')]"
+          }
+        }
+      }
+    },
+    {
+      "comments": "For each of the Service Bus objects in the serviceBusDetails object that is passed in, we will pass the Topics collection down through the this loop.",
+      "name": "[concat(parameters('serviceBusDetails') [copyIndex()].resourceName,'-createTopicAndSubscriptions')]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('serviceBusDetails') [copyIndex()].resourceGroupName]",
+      "apiVersion": "2022-09-01",
+      "copy": {
+        "name": "TopicCopy",
+        "count": "[length(parameters('serviceBusDetails'))]"
+      },
+      "dependsOn": [
+        "[concat(parameters('serviceBusDetails') [copyIndex()].resourceName,'-createNamespace')]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('templatespecsBaseResourceId'), 'ServiceBus-factory-serviceBus-topics', '/versions/v1')]"
+        },
+        "parameters": {
+          "templatespecsBaseResourceId": {
+            "value": "[parameters('templatespecsBaseResourceId')]"
+          },
+          "serviceBusNamespace": {
+            "value": "[parameters('serviceBusDetails') [copyIndex()].resourceName]"
+          },
+          "resourceGroupName": {
+            "value": "[parameters('serviceBusDetails') [copyIndex()].resourceGroupName]"
+          },
+          "topics": {
+            "value": "[parameters('serviceBusDetails')[copyIndex()].topics]"
+          }
+        }
+      }
+    }
+  ]
+}

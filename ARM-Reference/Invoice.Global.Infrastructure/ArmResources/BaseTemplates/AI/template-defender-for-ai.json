@@ -1,0 +1,41 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "cognitiveServiceName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the Cognitive Service Account to configure Defender for AI settings for."
+      }
+    },
+    "state": {
+      "type": "string",
+      "defaultValue": "Enabled",
+      "allowedValues": [
+        "Enabled",
+        "Disabled"
+      ],
+      "metadata": {
+        "description": "The state of Defender for AI settings."
+      }
+    },
+    "apiVersion": {
+      "type": "string",
+      "defaultValue": "2025-04-01-preview",
+      "metadata": {
+        "description": "The API version to use for the Defender for AI settings resource."
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.CognitiveServices/accounts/defenderForAISettings",
+      "apiVersion": "[parameters('apiVersion')]",
+      "name": "[concat(parameters('cognitiveServiceName'), '/Default')]",
+      "properties": {
+        "state": "[parameters('state')]"
+      }
+    }
+  ],
+  "outputs": {}
+}

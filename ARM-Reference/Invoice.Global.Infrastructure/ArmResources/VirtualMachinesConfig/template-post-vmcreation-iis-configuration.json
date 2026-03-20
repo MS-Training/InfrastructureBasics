@@ -1,0 +1,251 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "armTemplatesSasToken": {
+      "type": "string"
+    },
+    "armTemplateURI": {
+      "type": "string",
+      "metadata": {
+        "description": "The Url of the storage account and Container where your Resources are stored"
+      }
+    },
+    "templatespecsBaseResourceId": {
+      "type": "string"
+    },
+    "vmName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the existing VM to apply the DSC configuration to"
+      }
+    },
+    "vmRegion": {
+      "type": "string",
+      "minLength": 1,
+      "metadata": {
+        "description": "Location for all resources."
+      }
+    },
+    "isHALoadBalancer": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "This Flag is used decide if the load balancer is HA, has all ports available or specific ports are open"
+      }
+    },
+    "loadBalancerName": {
+      "type": "string",
+      "metadata": {
+        "description": "The Name of the Load Balancer"
+      }
+    },
+    "virtualNetworkName": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Name for the VirtualNetwork"
+      }
+    },
+    "vnetResourceGroupName": {
+      "type": "string",
+      "defaultValue": "ERNetwork-InetApp",
+      "metadata": {
+        "description": "Name for the Resource Group that contains VirtualNetwork"
+      }
+    },
+    "numberOfInstances": {
+      "type": "int",
+      "defaultValue": 2,
+      "metadata": {
+        "description": "Number of VMs to deploy"
+      }
+    },
+    "backEndIpAddresses": {
+      "type": "array",
+      "metadata": {
+        "description": "An Array with all the IP addresses that will be part of the Load Balancer"
+      }
+    },
+    "AcceleratedNetworking": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Accelerated Networking can only be enabled on supported SKUs.  See https://docs.microsoft.com/en-us/azure/virtual-network/create-vm-accelerated-networking-powershell for details."
+      }
+    }
+  },
+  "variables": {
+    "baseTemplatePath": "/BaseTemplates/",
+    "vnetID": "[concat('/subscriptions/',subscription().subscriptionId,'/resourceGroups/',parameters('vnetResourceGroupName'),'/providers/Microsoft.Network/virtualnetworks/',parameters('virtualNetworkName'))]",
+    "subnetName": "Subnet-1",
+    "subnetRef": "[concat(variables('vnetId'), '/subnets/', variables('subnetName'))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/deployments",
+      "name": "[concat(parameters('vmName'),if(equals(parameters('numberOfInstances'),1),'1', copyindex(1)),'-BuildMachineRole-IIS')]",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+      ],
+      "copy": {
+        "name": "BuildMachineRoleLoop",
+        "count": "[parameters('numberOfInstances')]"
+      },
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('templatespecsBaseResourceId'), 'Scripts-template-BuildIIS', '/versions/v1')]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "armTemplatesSasToken": {
+            "value": "[parameters('armTemplatesSasToken')]"
+          },
+          "armTemplateURI": {
+            "value": "[parameters('armTemplateURI')]"
+          },
+          "vmName": {
+            "value": "[concat(parameters('vmName'),if(equals(parameters('numberOfInstances'),1),'1', copyindex(1)))]"
+          },
+          "vmRegion": {
+            "value": "[parameters('vmRegion')]"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[parameters('isHALoadBalancer')]",
+      "name": "[toupper(concat(parameters('loadBalancerName'),'HA'))]",
+      "apiVersion": "2017-08-01",
+      "type": "Microsoft.Network/loadBalancers",
+      "location": "[parameters('vmRegion')]",
+      "sku": {
+        "name": "Standard"
+      },
+      "dependsOn": [
+      ],
+      "properties": {
+        "frontendIPConfigurations": [
+          {
+            "name": "LoadBalancerFrontEnd",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[variables('subnetRef')]"
+              }
+            }
+          }
+        ],
+        "backendAddressPools": [
+          {
+            "name": "BackendPool1"
+          }
+        ],
+        "loadBalancingRules": [
+          {
+            "properties": {
+              "frontendIPConfiguration": {
+                "id": "[concat(resourceId('Microsoft.Network/loadBalancers', concat(parameters('loadBalancerName'),'HA')), '/frontendIPConfigurations/LoadBalancerFrontend')]"
+              },
+              "backendAddressPool": {
+                "id": "[concat(resourceId('Microsoft.Network/loadBalancers', concat(parameters('loadBalancerName'),'HA')), '/backendAddressPools/BackendPool1')]"
+              },
+              "probe": {
+                "id": "[concat(resourceId('Microsoft.Network/loadBalancers', concat(parameters('loadBalancerName'),'HA')), '/probes/lbprobe')]"
+              },
+              "protocol": "All",
+              "frontendPort": 0,
+              "backendPort": 0,
+              "idleTimeoutInMinutes": 4,
+              "enableFloatingIP": false,
+              "enableTcpReset": false,
+              "loadDistribution": "SourceIP",
+              "disableOutboundSnat": false
+            },
+            "name": "lbrule"
+          }
+        ],
+        "probes": [
+          {
+            "properties": {
+              "protocol": "Tcp",
+              "port": 50001,
+              "intervalInSeconds": 15,
+              "numberOfProbes": 2
+            },
+            "name": "lbprobe"
+          }
+        ]
+      }
+    },
+    {
+      "name": "[concat(parameters('vmName'),if(equals(parameters('numberOfInstances'),1),'1', copyindex(1)),'-SetBackendPool')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+        "[toupper(concat(parameters('loadBalancerName'),'HA'))]"
+      ],
+      "copy": {
+        "name": "BackendLoop",
+        "count": "[parameters('numberOfInstances')]"
+      },
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('templatespecsBaseResourceId'), 'VirtualMachine-template-ilb-backendpool', '/versions/v1')]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "lbID": {
+            "value": "[resourceId('Microsoft.Network/loadBalancers',if(parameters('isHALoadBalancer'),concat(parameters('loadBalancerName'),'HA'),parameters('loadBalancerName')))]"
+          },
+          "nicName": {
+            "value": "[concat(parameters('vmName'),if(equals(parameters('numberOfInstances'),1),'1', copyindex(1)))]"
+          },
+          "AcceleratedNetworking": {
+            "value": "[parameters('AcceleratedNetworking')]"
+          },
+          "ipAddress": {
+            "value": "[parameters('backEndIpAddresses')[copyIndex()]]"
+          },
+          "subnetRef": {
+            "value": "[variables('subnetRef')]"
+          },
+          "vmRegion": {
+            "value": "[parameters('vmRegion')]"
+          }
+        }
+      }
+    },
+    {
+      "name": "[concat(if(parameters('isHALoadBalancer'),concat(parameters('loadBalancerName'),'HA'),parameters('loadBalancerName')),'-ConvertILBToStatic')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+        "BackendLoop"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('templatespecsBaseResourceId'), 'VirtualMachine-template-ilb-staticIP', '/versions/v1')]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "loadBalancerName": {
+            "value": "[if(parameters('isHALoadBalancer'),concat(parameters('loadBalancerName'),'HA'),parameters('loadBalancerName'))]"
+          },
+          "subnetRef": {
+            "value": "[variables('subnetRef')]"
+          },
+          "ipaddress": {
+            "value": "[reference(if(parameters('isHALoadBalancer'),concat(parameters('loadBalancerName'),'HA'),parameters('loadBalancerName'))).frontendIPConfigurations[0].properties.privateIPAddress]"
+          },
+          "vmRegion": {
+            "value": "[parameters('vmRegion')]"
+          }
+        }
+      }
+    }
+  ]
+}

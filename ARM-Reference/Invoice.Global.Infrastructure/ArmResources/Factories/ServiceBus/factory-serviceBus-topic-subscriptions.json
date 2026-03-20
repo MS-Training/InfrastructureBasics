@@ -1,0 +1,139 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "templatespecsBaseResourceId": {
+      "type": "string"
+    },
+    "serviceBusNamespace": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the Service Bus namespace"
+      }
+    },
+    "serviceBusTopicName": {
+      "type": "string",
+      "metadata": {
+        "description": "Topic Name"
+      }
+    },
+    "topicSubscriptions": {
+      "type": "array",
+      "metadata": {
+        "description": {
+          "comments": "The list of Subscriptions and properties for each Topic Subscription. See example required object arrayObject",
+          "subscriptions": [
+            {
+              "name": "SubscriptionName0",
+              "comments": "The properties object below contains example values.",
+              "filterRules": [
+                {
+                  "name": "FilterRuleName0",
+                  "comments": "The properties object below contains example values.",
+                  "properties": {
+                    "action": {},
+                    "filterType": "SqlFilter",
+                    "sqlFilter": {
+                      "sqlExpression": "user.EventType LIKE('%.Invoice.%.v1.Intake')",
+                      "compatibilityLevel": 20
+                    }
+                  }
+                }
+              ],
+              "properties": {
+                "isClientAffine": false,
+                "lockDuration": "PT1M",
+                "requiresSession": false,
+                "defaultMessageTimeToLive": "P10675199DT2H48M5.4775807S",
+                "deadLetteringOnMessageExpiration": false,
+                "deadLetteringOnFilterEvaluationExceptions": true,
+                "maxDeliveryCount": 10,
+                "status": "Active",
+                "enableBatchedOperations": true,
+                "autoDeleteOnIdle": "P10675199DT2H48M5.4775807S"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "guidValue": {
+      "type": "string",
+      "defaultValue": "[newGuid()]",
+      "metadata": {
+        "description": "A unique value to ensure deployment names are unique"
+      }
+    }
+  },
+  "variables": {},
+  "resources": [
+    {
+      "comments": "This create all the subscriptions defined under the topic",
+      "name": "[take(concat('createSubscription-', copyIndex() ,'-',parameters('guidValue')),64)]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "copy": {
+        "name": "SubscriptionCopy",
+        "count": "[length(parameters('topicSubscriptions'))]"
+      },
+      "dependsOn": [
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('templatespecsBaseResourceId'), 'ServiceBus-template-serviceBus-topic-subscription', '/versions/v1')]"
+        },
+        "parameters": {
+          "serviceBusNamespace": {
+            "value": "[parameters('serviceBusNamespace')]"
+          },
+          "serviceBusTopicName": {
+            "value": "[parameters('serviceBusTopicName')]"
+          },
+          "serviceBusTopicSubscriptionName": {
+            "value": "[parameters('topicSubscriptions') [copyIndex()].name]"
+          },
+          "serviceBusTopicSubscriptionProperties": {
+            "value": "[parameters('topicSubscriptions') [copyIndex()].properties]"
+          }
+        }
+      }
+    },
+    {
+      "comments": "This will create the Filter Rules under a given subscription",
+      "name": "[take(concat('createFilterRules-', copyIndex() ,'-', parameters('guidValue')), 64)]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "copy": {
+        "name": "createFilterRules",
+        "count": "[length(parameters('topicSubscriptions'))]"
+      },
+      "dependsOn": [
+        "[take(concat('createSubscription-', copyIndex() ,'-',parameters('guidValue')),64)]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('templatespecsBaseResourceId'), 'ServiceBus-factory-serviceBus-topic-subscription-filterRules', '/versions/v1')]"
+        },
+        "parameters": {
+          "templatespecsBaseResourceId": {
+            "value": "[parameters('templatespecsBaseResourceId')]"
+          },
+          "serviceBusNamespace": {
+            "value": "[parameters('serviceBusNamespace')]"
+          },
+          "serviceBusTopicName": {
+            "value": "[parameters('serviceBusTopicName')]"
+          },
+          "serviceBusTopicSubscriptionName": {
+            "value": "[parameters('topicSubscriptions') [copyIndex()].name]"
+          },
+          "serviceBusTopicSubscriptionFilterRules": {
+            "value": "[parameters('topicSubscriptions') [copyIndex()].filterRules]"
+          }
+        }
+      }
+    }
+  ]
+}

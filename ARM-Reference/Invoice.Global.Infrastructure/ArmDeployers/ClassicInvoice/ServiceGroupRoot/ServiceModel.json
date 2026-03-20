@@ -1,0 +1,112 @@
+﻿{
+  "$schema": "https://ev2schema.azure.net/schemas/2020-01-01/serviceModel.json",
+  "serviceMetadata": {
+    "serviceGroup": "Invoice",
+    "environment": "__ev2Environment__"
+  },
+  "serviceResourceGroupDefinitions": [
+    {
+      "name": "ClassicInvoiceAppGroup",
+      "serviceResourceDefinitions": [
+        {
+          "name": "ClassicInvoiceDev",
+          "composedOf": {
+            "arm": {
+              "templatePath": "Templates\\azuredeploy.json",
+              "parametersPath": "Parameters\\azuredeploy.parameters-dev.json",
+              "deploymentLevel": "Subscription"
+            }
+          }
+        },
+        {
+          "name": "ClassicInvoicePpe",
+          "composedOf": {
+            "arm": {
+              "templatePath": "Templates\\azuredeploy.json",
+              "parametersPath": "Parameters\\azuredeploy.parameters-ppe.json",
+              "deploymentLevel": "Subscription"
+            }
+          }
+        },
+        {
+          "name": "ClassicInvoicePpedr",
+          "composedOf": {
+            "arm": {
+              "templatePath": "Templates\\azuredeploy.json",
+              "parametersPath": "Parameters\\azuredeploy.parameters-ppe-bcdr.json",
+              "deploymentLevel": "Subscription"
+            }
+          }
+        },
+        {
+          "name": "ClassicInvoicePrd",
+          "composedOf": {
+            "arm": {
+              "templatePath": "Templates\\azuredeploy.json",
+              "parametersPath": "Parameters\\azuredeploy.parameters-prd.json",
+              "deploymentLevel": "Subscription"
+            }
+          }
+        },
+        {
+          "name": "ClassicInvoicePrddr",
+          "composedOf": {
+            "arm": {
+              "templatePath": "Templates\\azuredeploy.json",
+              "parametersPath": "Parameters\\azuredeploy.parameters-prd-bcdr.json",
+              "deploymentLevel": "Subscription"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "serviceResourceGroups": [
+    {
+      "azureResourceGroupName": "dontChangeThisValueDev",
+      "location": "West US 2",
+      "instanceOf": "ClassicInvoiceAppGroup",
+      "azureSubscriptionId": "b7aae6f6-87ad-47ce-89ce-26e158fb74a4",
+      "scopeTags": [
+        {
+          "name": "serviceBindings"
+        }
+      ],
+      "serviceResources": [
+        {
+          "name": "ClassicInvoiceDevResources",
+          "instanceOf": "ClassicInvoiceDev"
+        },
+        {
+          "name": "ClassicInvoicePpeResources",
+          "instanceOf": "ClassicInvoicePpe"
+        },
+        {
+          "name": "ClassicInvoicePpedrResources",
+          "instanceOf": "ClassicInvoicePpedr"
+        }
+      ]
+    },
+    {
+      "azureResourceGroupName": "dontChangeThisValueProd",
+      "location": "West US 2",
+      "instanceOf": "ClassicInvoiceAppGroup",
+      "azureSubscriptionId": "87a507d4-2e71-4b6f-8f57-c06d22641d33",
+      "scopeTags": [
+        {
+          "name": "serviceBindings"
+        }
+      ],
+      "serviceResources": [
+        {
+          "name": "ClassicInvoicePrdResources",
+          "instanceOf": "ClassicInvoicePrd"
+        },
+        {
+          "name": "ClassicInvoicePrddrResources",
+          "instanceOf": "ClassicInvoicePrddr"
+        }
+      ]
+    }
+  ]
+}

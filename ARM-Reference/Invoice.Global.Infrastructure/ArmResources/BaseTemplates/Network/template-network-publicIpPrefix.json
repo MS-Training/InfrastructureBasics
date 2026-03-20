@@ -1,0 +1,57 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "publicIpPrefixName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of Public IP"
+      }
+    },
+    "location": {
+      "type": "String"
+    },
+    "prefixLength": {
+      "type": "int",
+      "defaultValue": 28
+    },
+    "skuTier": {
+      "type": "string",
+      "defaultValue": "Regional"
+    },
+    "ipTagName": {
+      "type": "string",
+      "defaultValue": "APInvoiceServicesTest"
+    }
+  },
+  "variables": {
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Network/publicIPPrefixes",
+      "apiVersion": "2023-04-01",
+      "name": "[parameters('publicIpPrefixName')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "Standard",
+        "tier": "[parameters('skuTier')]"
+      },
+      "properties": {
+        "prefixLength": "[parameters('prefixLength')]",
+        "publicIPAddressVersion": "IPv4",
+        "ipTags": [
+          {
+            "ipTagType": "FirstPartyUsage",
+            "tag": "[concat('/',parameters('ipTagName'))]"
+          }
+        ]
+      }
+    }
+  ],
+  "outputs": {
+    "publicIpPrefixResourceId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Network/publicIPPrefixes', parameters('publicIpPrefixName'))]"
+    }
+  }
+}

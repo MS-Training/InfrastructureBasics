@@ -1,0 +1,119 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "privateEndpointName": {
+      "type": "String"
+    },
+    "customNetworkInterfaceName": {
+      "type": "String"
+    },
+    "location": {
+      "type": "String"
+    },
+    "privateLinkServiceId": {
+      "type": "String",
+      "metadata": {
+        "description": "The resource id of the service that will be linked"
+      }
+    },
+    "virtualNetworkId": {
+      "type": "String",
+      "metadata": {
+        "description": "The resource id of the Virtual Network that will be used"
+      }
+    },
+    "virtualNetworkSubnetName": {
+      "type": "String",
+      "metadata": {
+        "description": "the Virtual Network Subnet Name that will be used"
+      }
+    },
+    "serviceGroupNames": {
+      "type": "array",
+      "metadata": {
+        "description": "The Name of the service GroupId that will be linked. i.e redisCache for Redis"
+      }
+    },
+    "guidValue": {
+      "type": "string",
+      "defaultValue": "[newGuid()]",
+      "metadata": {
+        "description": "A unique value to ensure deployment names are unique"
+      }
+    }
+  },
+  "variables": {
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Network/privateEndpoints",
+      "apiVersion": "2021-05-01",
+      "name": "[parameters('privateEndpointName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "customNetworkInterfaceName": "[parameters('customNetworkInterfaceName')]",
+        "privateLinkServiceConnections": [
+          {
+            "name": "[parameters('privateEndpointName')]",
+            "properties": {
+              "privateLinkServiceId": "[parameters('privateLinkServiceId')]",
+              "groupIds": "[parameters('serviceGroupNames')]",
+              "privateLinkServiceConnectionState": {
+              }
+            }
+          }
+        ],
+        "manualPrivateLinkServiceConnections": [],
+        "subnet": {
+          "id": "[concat(parameters('virtualNetworkId'), '/subnets/',parameters('virtualNetworkSubnetName'))]"
+        },
+        "customDnsConfigs": []
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2020-06-01",
+      "name": "[take(concat(parameters('privateEndpointName'),'-OutputNicResourceId-', parameters('guidValue')),64)]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/privateEndpoints', parameters('privateEndpointName'))]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "parameters": {
+          "customNetworkInterfaceName": {
+            "value": "[parameters('customNetworkInterfaceName')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "customNetworkInterfaceName": {
+              "type": "string"
+            }
+          },
+          "variables": {
+            "nicResourceId": "[resourceId('Microsoft.Network/networkInterfaces', parameters('customNetworkInterfaceName'))]"
+          },
+          "resources": [],
+          "outputs": {
+            "privateEndPointIpConfiguration": {
+              "type": "array",
+              "value": "[reference(variables('nicResourceId'), '2020-11-01').ipConfigurations]"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "privateEndPointIpConfiguration": {
+      "type": "array",
+      "value": "[reference(take(concat(parameters('privateEndpointName'),'-OutputNicResourceId-', parameters('guidValue')),64)).outputs.privateEndPointIpConfiguration.value]"
+    }
+  }
+}

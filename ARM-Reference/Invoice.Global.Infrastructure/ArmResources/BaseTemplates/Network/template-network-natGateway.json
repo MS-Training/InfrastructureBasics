@@ -1,0 +1,54 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "natGatewayName": {
+      "type": "String"
+    },
+    "location": {
+      "type": "String"
+    },
+    "natGatewayProperties": {
+      "type": "object",
+      "defaultValue": {
+        "idleTimeoutInMinutes": "4",
+        "publicIpAddresses": [],
+        "publicIpPrefixes": []
+      },
+      "metadata": {
+        "idleTimeoutInMinutes": "int to set the idle timeout of the nat gateway.",
+        "publicIpAddresses": [
+          {
+            "id": "The resource id of the public ip address"
+          }
+        ],
+        "publicIpPrefixes": [
+          {
+            "id": "The resource id of the public ip address prefix"
+          }
+        ]
+      }
+    }
+  },
+  "variables": {
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Network/natGateways",
+      "apiVersion": "2023-04-01",
+      "name": "[parameters('natGatewayName')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "Standard",
+        "tier": "Regional"
+      },
+      "properties": "[parameters('natGatewayProperties')]"
+    }
+  ],
+  "outputs": {
+    "natGatewayResourceId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Network/natGateways', parameters('natGatewayName'))]"
+    }
+  }
+}

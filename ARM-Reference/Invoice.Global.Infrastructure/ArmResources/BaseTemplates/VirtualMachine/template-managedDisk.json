@@ -1,0 +1,61 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "vmName": {
+      "type": "string"
+    },
+    "diskSku": {
+      "type": "string",
+      "defaultValue": "Premium_LRS"
+    },
+    "osType": {
+      "type": "string",
+      "defaultValue": "Windows"
+    },
+    "diskSizeGB": {
+      "type": "string",
+      "defaultValue": "256"
+    },
+    "numberOfDisks": {
+      "type": "int",
+      "defaultValue": 1
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location for all resources."
+      }
+    }
+  },
+  "variables": {
+  },
+  "resources": [
+    {
+      "name": "[toupper(concat(parameters('vmName'), '-DataDisk-', copyindex(1)))]",
+      "type": "Microsoft.Compute/disks",
+      "apiVersion": "2019-07-01",
+      "copy": {
+        "name": "CreateManagedDisksLoop",
+        "count": "[add(parameters('numberOfDisks'),1)]"
+      },
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "[parameters('diskSku')]"
+      },
+      "properties": {
+        "osType": "[parameters('osType')]",
+        "creationData": {
+          "createOption": "Empty"
+        },
+        "diskSizeGB": "[parameters('diskSizeGB')]",
+        "encryption": {
+          "type": "EncryptionAtRestWithPlatformKey"
+        }
+      }
+    }
+  ],
+  "outputs": {
+  }
+}

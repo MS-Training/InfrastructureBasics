@@ -1,0 +1,445 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "armTemplatesSasToken": {
+      "type": "string"
+    },
+    "armTemplateURI": {
+      "type": "string",
+      "metadata": {
+        "description": "The Url of the storage account and Container where your Resources are stored"
+      }
+    },
+    "templatespecsBaseResourceId": {
+      "type": "string"
+    },
+    "timeZone": {
+      "type": "string",
+      "defaultValue": "\"Pacific Standard Time\""
+    },
+    "vmName": {
+      "type": "string",
+      "minLength": 3,
+      "metadata": {
+        "description": "Name for the Virtual Machine."
+      }
+    },
+    "vmRegion": {
+      "minLength": 3,
+      "type": "String",
+      "defaultValue": "[resourceGroup().location]",
+      "allowedValues": [
+        "[resourceGroup().location]",
+        "eastus",
+        "eastus2",
+        "centralus",
+        "northcentralus",
+        "southcentralus",
+        "southeastasia",
+        "westcentralus",
+        "westeurope",
+        "northeurope",
+        "westus",
+        "westus2"
+      ],
+      "metadata": {
+        "description": ""
+      }
+    },
+    "AcceleratedNetworking": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Accelerated Networking can only be enabled on supported SKUs.  See https://docs.microsoft.com/en-us/azure/virtual-network/create-vm-accelerated-networking-powershell for details."
+      }
+    },
+    "virtualNetwork": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Name for the VirtualNetwork"
+      }
+    },
+    "ipAddress": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "The static ip address to be set"
+      }
+    },
+    "vnetResourceGroup": {
+      "type": "string",
+      "defaultValue": "ERNetwork",
+      "metadata": {
+        "description": "Name for the Resource Group that contains VirtualNetwork"
+      }
+    },
+    "subnetName": {
+      "type": "string",
+      "defaultValue": "Subnet-1",
+      "metadata": {
+        "description": "Name for the subnet"
+      }
+    },
+    "workspaceName": {
+      "type": "string",
+      "metadata": {
+        "description": "Log Analytics workspace name"
+      }
+    },
+    "workspaceResourceGroupName": {
+      "type": "string",
+      "metadata": {
+        "description": "Log Analytics Resource Group Name"
+      }
+    },
+    "keyVaultName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the KeyVault to place the volume encryption key"
+      }
+    },
+    "keyVaultResourceGroup": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().name]",
+      "metadata": {
+        "description": "Resource group of the KeyVault"
+      }
+    },
+    "isFirstDeployment": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Select whether this is the first Deployment or not."
+      }
+    },
+    "diagnosticsStorageAccountName": {
+      "type": "string",
+      "minLength": 3
+    },
+    "diagnosticsResourceGroupName": {
+      "type": "string",
+      "minLength": 3
+    },
+    "isS2DCluster": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "This Flag is only used to create S2D Cluster. If you want to create an S2D Cluster look at component Domain Servers as sample otherwise leave this as No its default value"
+      }
+    },
+    "isBCDR": {
+      "type": "bool",
+      "defaultValue": false
+    },
+    "workspaceId": {
+      "type": "securestring",
+      "defaultValue": "NA",
+      "metadata": {
+        "description": "WorkspaceId"
+      }
+    },
+    "workspaceKey": {
+      "type": "securestring",
+      "defaultValue": "NA",
+      "metadata": {
+        "description": "WorkspaceKey"
+      }
+    }
+  },
+  "variables": {
+    "baseTemplatePath": "/BaseTemplates/",
+    "scriptsTemplatePath": "/Scripts/",
+    "vnetSubscriptionid": "[subscription().subscriptionId]",
+    "vnetID": "[concat('/subscriptions/',variables('vnetSubscriptionid'),'/resourceGroups/',parameters('vnetResourceGroup'),'/providers/Microsoft.Network/virtualnetworks/',parameters('virtualNetwork'))]",
+    "subnetName": "[parameters('subnetName')]",
+    "subnetRef": "[concat(variables('vnetId'), '/subnets/', variables('subnetName'))]"
+  },
+  "resources": [
+    {
+      "name": "[concat(parameters('vmName'),'-GuestConfiguration')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('templatespecsBaseResourceId'), 'VMExtensions-template-vm-extension-guest-configuration', '/versions/v1')]"
+        },
+        "parameters": {
+          "vmName": {
+            "value": "[parameters('vmName')]"
+          },
+          "location": {
+            "value": "[parameters('vmRegion')]"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[and(parameters('isFirstDeployment'),not(parameters('isBCDR')))]",
+      "name": "[concat(parameters('vmName'),'-SetStaticIP')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+        "[concat(parameters('vmName'),'-GuestConfiguration')]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('templatespecsBaseResourceId'), 'VirtualMachine-template-setStaticIp', '/versions/v1')]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "nicName": {
+            "value": "[parameters('vmName')]"
+          },
+          "AcceleratedNetworking": {
+            "value": "[parameters('AcceleratedNetworking')]"
+          },
+          "ipAddress": {
+            "value": "[parameters('ipAddress')]"
+          },
+          "subnetRef": {
+            "value": "[variables('subnetRef')]"
+          },
+          "vmRegion": {
+            "value": "[parameters('vmRegion')]"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[and(parameters('isFirstDeployment'),not(parameters('isBCDR')))]",
+      "name": "[concat(parameters('vmName'),'-AddLogAnalyticsExtension')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+        "[concat(parameters('vmName'),'-SetStaticIP')]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('templatespecsBaseResourceId'), 'VMExtensions-template-vm-extension-log-analytics', '/versions/v1')]"
+        },
+        "parameters": {
+          "vmName": {
+            "value": "[parameters('vmName')]"
+          },
+          "workspaceName": {
+            "value": "[parameters('workspaceName')]"
+          },
+          "workspaceResourceGroupName": {
+            "value": "[parameters('workspaceResourceGroupName')]"
+          },
+          "location": {
+            "value": "[parameters('vmRegion')]"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[and(parameters('isFirstDeployment'),parameters('isBCDR'))]",
+      "name": "[concat(parameters('vmName'),'-AddLogAnalyticsWorkspaceForBCDR')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+        "[concat(parameters('vmName'),'-GuestConfiguration')]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('templatespecsBaseResourceId'), 'VMExtensions-template-vm-extension-ps-script', '/versions/v1')]"
+        },
+        "parameters": {
+          "vmName": {
+            "value": "[parameters('vmName')]"
+          },
+          "powershellFileName": {
+            "value": "LinkLogAnalytisWorkSpace.ps1"
+          },
+          "powershellParameters": {
+            "value": "[concat('-WorkspaceId ',parameters('workspaceId'),' -WorkspaceKey ',parameters('workspaceKey'))]"
+          },
+          "powershellFileBlobUrl": {
+            "value": "[concat(parameters('armTemplateURI'), variables('scriptsTemplatePath'), 'LinkLogAnalytisWorkSpace.ps1', parameters('armTemplatesSasToken'))]"
+          },
+          "location": {
+            "value": "[parameters('vmRegion')]"
+          }
+        }
+      }
+    },
+    {
+      "name": "[concat(parameters('vmName'),'-AddDiskEncryption')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+        "[concat(parameters('vmName'),'-AddLogAnalyticsExtension')]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('templatespecsBaseResourceId'), 'VMExtensions-template-vm-extension-disk-encryption', '/versions/v1')]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "vmName": {
+            "value": "[parameters('vmName')]"
+          },
+          "keyVaultName": {
+            "value": "[parameters('keyVaultName')]"
+          },
+          "keyVaultResourceGroup": {
+            "value": "[parameters('keyVaultResourceGroup')]"
+          },
+          "vmRegion": {
+            "value": "[parameters('vmRegion')]"
+          },
+          "volumeType": {
+            "value": "[if(parameters('isS2DCluster'),'OS','All')]"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[parameters('isFirstDeployment')]",
+      "name": "[concat(parameters('vmName'),'-ConfigureTLS')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+        "[concat(parameters('vmName'),'-AddDiskEncryption')]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('templatespecsBaseResourceId'), 'VMExtensions-template-vm-extension-ps-script', '/versions/v1')]"
+        },
+        "parameters": {
+          "vmName": {
+            "value": "[parameters('vmName')]"
+          },
+          "powershellFileName": {
+            "value": "ConfigureTLS.ps1"
+          },
+          "powershellParameters": {
+            "value": "-Verbose"
+          },
+          "powershellFileBlobUrl": {
+            "value": "[concat(parameters('armTemplateURI'), variables('scriptsTemplatePath'), 'ConfigureTLS.ps1', parameters('armTemplatesSasToken'))]"
+          },
+          "location": {
+            "value": "[parameters('vmRegion')]"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[parameters('isFirstDeployment')]",
+      "type": "Microsoft.Resources/deployments",
+      "name": "[concat(parameters('vmName'),'-IaaSDiagnostics')]",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+        "[concat(parameters('vmName'),'-ConfigureTLS')]"
+      ],
+      "properties": {
+        "templateLink": {
+          "id": "[concat(parameters('templatespecsBaseResourceId'), 'VMExtensions-template-vm-extension-log-IaaSDiagnostics', '/versions/v1')]"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "vmName": {
+            "value": "[parameters('vmName')]"
+          },
+          "applicationDiagnosticsStorageAccountName": {
+            "value": "[parameters('DiagnosticsStorageAccountName')]"
+          },
+          "diagnosticsResourceGroupName": {
+            "value": "[parameters('diagnosticsResourceGroupName')]"
+          },
+          "vmRegion": {
+            "value": "[parameters('vmRegion')]"
+          }
+        }
+      }
+    },
+    {
+      "name": "[concat(parameters('vmName'),'-AddAntiMalwareExtension')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+        "[concat(parameters('vmName'),'-IaaSDiagnostics')]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('templatespecsBaseResourceId'), 'VMExtensions-template-vm-extension-antimalware', '/versions/v1')]"
+        },
+        "parameters": {
+          "vmName": {
+            "value": "[parameters('vmName')]"
+          },
+          "location": {
+            "value": "[parameters('vmRegion')]"
+          }
+        }
+      }
+    },
+    {
+      "name": "[concat(parameters('vmName'),'-AddDependencyAgent')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+        "[concat(parameters('vmName'),'-AddAntiMalwareExtension')]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('templatespecsBaseResourceId'), 'VMExtensions-template-vm-extension-dependency-agent', '/versions/v1')]"
+        },
+        "parameters": {
+          "vmName": {
+            "value": "[parameters('vmName')]"
+          },
+          "location": {
+            "value": "[parameters('vmRegion')]"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[parameters('isFirstDeployment')]",
+      "name": "[concat(parameters('vmName'),'-RunConfigScripts')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+        "[concat(parameters('vmName'),'-AddDependencyAgent')]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('templatespecsBaseResourceId'), 'VMExtensions-template-vm-extension-ps-script', '/versions/v1')]"
+        },
+        "parameters": {
+          "vmName": {
+            "value": "[parameters('vmName')]"
+          },
+          "powershellFileName": {
+            "value": "BaseVirtualMachineConfiguration.ps1"
+          },
+          "powershellParameters": {
+            "value": "[concat('-Verbose -timeZone ', parameters('timeZone'))]"
+          },
+          "powershellFileBlobUrl": {
+            "value": "[concat(parameters('armTemplateURI'), variables('scriptsTemplatePath'), 'BaseVirtualMachineConfiguration.ps1', parameters('armTemplatesSasToken'))]"
+          },
+          "location": {
+            "value": "[parameters('vmRegion')]"
+          }
+        }
+      }
+    }
+  ]
+}

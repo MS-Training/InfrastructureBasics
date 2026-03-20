@@ -1,0 +1,94 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "templatespecsBaseResourceId": {
+      "type": "string"
+    },
+    "serviceBusNamespace": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the Service Bus namespace"
+      }
+    },
+    "serviceBusTopicName": {
+      "type": "string",
+      "metadata": {
+        "description": "Topic Name"
+      }
+    },
+    "serviceBusTopicSubscriptionName": {
+      "type": "string",
+      "metadata": {
+        "description": "Subscription Name"
+      }
+    },
+    "serviceBusTopicSubscriptionFilterRules": {
+      "type": "array",
+      "metadata": {
+        "description": {
+          "comments": "The list of Subscriptions and properties for each Topic Subscription. See example required object arrayObject",
+          "filterRules": [
+            {
+              "name": "FilterRuleName0",
+              "comments": "The properties object below contains example values.",
+              "properties": {
+                "action": {},
+                "filterType": "SqlFilter",
+                "sqlFilter": {
+                  "sqlExpression": "user.EventType LIKE('%.Invoice.%.v1.Intake')",
+                  "compatibilityLevel": 20
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "guidValue": {
+      "type": "string",
+      "defaultValue": "[newGuid()]",
+      "metadata": {
+        "description": "A unique value to ensure deployment names are unique"
+      }
+    }
+  },
+  "variables": {},
+  "resources": [
+    {
+      "comments": "This create all the filters defined under the subscription",
+      "name": "[take(concat('createFilterRule-', copyIndex() , '-', parameters('guidValue')),64)]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "copy": {
+        "name": "SubscriptionFilterRulesLoop",
+        "count": "[length(parameters('serviceBusTopicSubscriptionFilterRules'))]"
+      },
+      "dependsOn": [
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('templatespecsBaseResourceId'), 'ServiceBus-template-serviceBus-topic-subscription-filterRule', '/versions/v1')]"
+        },
+        "parameters": {
+          "serviceBusNamespace": {
+            "value": "[parameters('serviceBusNamespace')]"
+          },
+          "serviceBusTopicName": {
+            "value": "[parameters('serviceBusTopicName')]"
+          },
+          "serviceBusTopicSubscriptionName": {
+            "value": "[parameters('serviceBusTopicSubscriptionName')]"
+          },
+          "serviceBusTopicSubscriptionFilterRuleName": {
+            "value": "[parameters('serviceBusTopicSubscriptionFilterRules') [copyIndex()].name]"
+          },
+          "topicSubscriptionFilterRuleProperties": {
+            "value": "[parameters('serviceBusTopicSubscriptionFilterRules') [copyIndex()].properties]"
+          }
+        }
+      }
+    }
+  ]
+}

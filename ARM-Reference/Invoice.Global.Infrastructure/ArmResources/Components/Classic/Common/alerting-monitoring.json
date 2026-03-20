@@ -1,0 +1,1062 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "settings": {
+      "type": "secureObject",
+      "metadata": {
+        "description": "This is coming from the parameter File under Parameters"
+      }
+    },
+    "resourceNames": {
+      "type": "Object",
+      "metadata": {
+        "description": "This is coming from the parameter File under Parameters"
+      }
+    }
+  },
+  "variables": {
+    "logAnalyticsFunctions": [
+      {
+        "name": "GetAllComputers",
+        "category": "Functions",
+        "functionAlias": "GetAllComputers",
+        "query": "Heartbeat\n| distinct Computer\n",
+        "tags": [
+          {
+            "Name": "Group",
+            "Value": "Computer"
+          }
+        ]
+      },
+      {
+        "name": "GetMonitoredSQLComputers",
+        "category": "Functions",
+        "functionAlias": "GetMonitoredSQLComputers",
+        "query": "Heartbeat\n | where Computer contains 'SQL'\n | distinct Computer\n",
+        "tags": [
+          {
+            "Name": "Group",
+            "Value": "Computer"
+          }
+        ]
+      },
+      {
+        "name": "GetExcludedSqlJobs",
+        "category": "Functions",
+        "functionAlias": "GetExcludedSqlJobs",
+        "query": "let ExcludeSQLJobName = datatable(JobName: string)\n    [\n    \"PushSQLLogsIntoOMS\",\n    \"EnableLoggingOnSQLJobFailure\",\n    \"GetTelemetryDetails\",\n    \"PushOrchestrationDataIntoOMS\",\n    \"CaptureDRSTelemetry\",\n    \"KillInvalidSPIDs\",\n    \"Enable Encryption for All Databases\",\n    \"KillConcurrentDRSUserSPIDs\",\n    \"PushMCStagingDataIntoOMS\",\n    \"CheckpointWorkArea\",\n    \"GrantWorkDB\",\n    \"DropOldWorkAreaTables\",\n    \"GrantWorkArea\"\n    ];\nExcludeSQLJobName\n",
+        "tags": []
+      }
+    ],
+    "alertsActionGroups": [
+      {
+        "name": "DriEmail",
+        "emailReceivers": [
+          {
+            "name": "DriEmail",
+            "emailAddress": "[parameters('settings').common.DriEmail]",
+            "useCommonAlertSchema": false
+          }
+        ]
+      },
+      {
+        "name": "[concat('ICM-',toupper(parameters('resourceNames').environment))]",
+        "emailReceivers": [
+          {
+            "comment": "This is a place holder for ICM implementation",
+            "name": "Test",
+            "emailAddress": "[parameters('settings').common.DriEmail]",
+            "useCommonAlertSchema": true
+          }
+        ]
+      }
+    ],
+    "actionGroupBase": "[concat(subscription().id,'/resourceGroups/',resourceGroup().name,'/providers/microsoft.insights/actionGroups/')]",
+    "actionGroupsIds": {
+      "DriEmail": "[concat(variables('actionGroupBase'),variables('alertsActionGroups')[0].name)]",
+      "createICM": "[concat(variables('actionGroupBase'),variables('alertsActionGroups')[1].name)]"
+    },
+    "alerts": [
+      {
+        "isCreate": true,
+        "name": "SQL-Job-Failures",
+        "description": "Important SQL Job has failed. See query results for job name and server.",
+        "resourceIdScope": "[parameters('resourceNames').workspaceId]",
+        "actionGroupId": "[variables('actionGroupsIds').createICM]",
+        "severity": 3,
+        "enabled": true,
+        "muteActionsDuration": "PT60M",
+        "evaluationFrequency": "PT5M",
+        "windowSize": "PT5M",
+        "criteriaDetails": [
+          {
+            "query": "let splitter = (inputString:string) { split(replace(@'</Param>','',inputString),\"<Param>\") };\nEvent | where EventLog == 'Application'\n    and Source == 'SQLSERVERAGENT'\n    and Computer in (GetMonitoredSQLComputers)\n        and RenderedDescription contains \"Scheduled Job\"\n| extend info = splitter(ParameterXml)\n| project  OmsTime=TimeGenerated, JobFailureUTCMinus8h=datetime_add('hour', 8, todatetime(info[4])), Computer, JobName=info[1],Status=info[3],Message=info[5]\n| where JobName !in (GetExcludedSqlJobs)",
+            "timeAggregation": "Count",
+            "operator": "GreaterThan",
+            "threshold": 0,
+            "failingPeriods": {
+              "numberOfEvaluationPeriods": 1,
+              "minFailingPeriodsToAlert": 1
+            }
+          }
+        ]
+      },
+      {
+        "isCreate": true,
+        "name": "ActiveDirectory-SQLLogin-Audit",
+        "description": "This alert will monitor the number of Login Failure attempts for INVRSQLPRD1.redmond.corp.microsoft.com and INVRSQLPRD2.redmond.corp.microsoft.com. The query checks for Audit Alerts, and connections failurs over a period of 15 minutes. If more than 10 connection failures exist, please research and determine what is causing connection failures to the machines as this could be a pontential outage.",
+        "resourceIdScope": "[parameters('resourceNames').workspaceId]",
+        "actionGroupId": "[variables('actionGroupsIds').createICM]",
+        "severity": 3,
+        "enabled": true,
+        "muteActionsDuration": "PT3H",
+        "evaluationFrequency": "PT15M",
+        "windowSize": "PT15M",
+        "criteriaDetails": [
+          {
+            "query": "Event\n| where Computer has_any (\"INVRSQLPRD1.redmond.corp.microsoft.com\", \"INVRSQLPRD2.redmond.corp.microsoft.com\")\n| where\n EventLevelName contains \"Audit Error\" \n and RenderedDescription contains \"Login failed\" \n and ParameterXml matches regex \"[CLIENT:.*]\"\n",
+            "timeAggregation": "Count",
+            "operator": "GreaterThan",
+            "threshold": 10,
+            "failingPeriods": {
+              "numberOfEvaluationPeriods": 1,
+              "minFailingPeriodsToAlert": 1
+            }
+          }
+        ]
+      },
+      {
+        "isCreate": true,
+        "name": "High-CPU",
+        "description": "Detected VM/s that running high CPU consumption",
+        "resourceIdScope": "[parameters('resourceNames').workspaceId]",
+        "actionGroupId": "[variables('actionGroupsIds').createICM]",
+        "severity": 3,
+        "enabled": true,
+        "muteActionsDuration": "PT60M",
+        "evaluationFrequency": "PT5M",
+        "windowSize": "PT5M",
+        "criteriaDetails": [
+          {
+            "query": "Perf | where ObjectName == \"Processor\" and CounterName == \"% Processor Time\" | summarize AggregatedValue = avg(CounterValue) by bin(TimeGenerated, 10m), Computer | sort by TimeGenerated desc | where AggregatedValue > 90",
+            "timeAggregation": "Count",
+            "operator": "GreaterThan",
+            "threshold": 0,
+            "failingPeriods": {
+              "numberOfEvaluationPeriods": 1,
+              "minFailingPeriodsToAlert": 1
+            }
+          }
+        ]
+      },
+      {
+        "isCreate": true,
+        "name": "DB-Permissions-Error",
+        "description": "",
+        "resourceIdScope": "[parameters('resourceNames').workspaceId]",
+        "actionGroupId": "[variables('actionGroupsIds').createICM]",
+        "severity": 3,
+        "enabled": true,
+        "muteActionsDuration": "PT60M",
+        "evaluationFrequency": "PT5M",
+        "windowSize": "PT5M",
+        "criteriaDetails": [
+          {
+            "query": "Event\n| where ParameterXml has \"the database-principal\"\n| where EventLevelName == \"Error\" ",
+            "timeAggregation": "Count",
+            "operator": "GreaterThan",
+            "threshold": 0,
+            "failingPeriods": {
+              "numberOfEvaluationPeriods": 1,
+              "minFailingPeriodsToAlert": 1
+            }
+          }
+        ]
+      },
+      {
+        "isCreate": true,
+        "name": "High-Memory-Usage",
+        "description": "Detected VM/s with High Memory Usage",
+        "resourceIdScope": "[parameters('resourceNames').workspaceId]",
+        "actionGroupId": "[variables('actionGroupsIds').createICM]",
+        "severity": 3,
+        "enabled": true,
+        "muteActionsDuration": "PT60M",
+        "evaluationFrequency": "PT5M",
+        "windowSize": "PT5M",
+        "criteriaDetails": [
+          {
+            "query": "Perf\n| where ObjectName == \"Memory\" \n| where CounterName == \"Available MBytes\" \n| summarize AggregatedValue = avg(CounterValue) by bin(TimeGenerated, 30m), Computer \n| sort by TimeGenerated desc \n| where AggregatedValue < 512",
+            "timeAggregation": "Count",
+            "operator": "GreaterThan",
+            "threshold": 0,
+            "failingPeriods": {
+              "numberOfEvaluationPeriods": 1,
+              "minFailingPeriodsToAlert": 1
+            }
+          }
+        ]
+      },
+      {
+        "isCreate": "[if(contains(toupper(parameters('resourceNames').environment),'PRD'),true(),false())]",
+        "name": "New-Server-Administrator-Has-Been-Added",
+        "description": "New Operating System Administrator has been added",
+        "resourceIdScope": "[parameters('resourceNames').workspaceId]",
+        "actionGroupId": "[variables('actionGroupsIds').createICM]",
+        "severity": 3,
+        "enabled": true,
+        "muteActionsDuration": "PT60M",
+        "evaluationFrequency": "PT5M",
+        "windowSize": "PT5M",
+        "criteriaDetails": [
+          {
+            "query": "NTAdminAccounts_CL\n| where ( OSAdministrator_s != \"itsvc0\")\n| where ( OSAdministrator_s != \"ITSVC0\")\n| where ( OSAdministrator_s != \"Domain Admins\")\n| where ( OSAdministrator_s != \"JIT_CFE-MSInvoice-PROD-REDMOND_ElevatedAccess\")\n| where ( OSAdministrator_s != \"JIT_CFE-MSInvoice-PROD-PARTNERS_ElevatedAccess\")\n| where ( OSAdministrator_s != \"JIT_CFE-MSInvoice-PROD-NORTHAMERICA_ElevatedAccess\")\n| where ( OSAdministrator_s != \"ITG-GDCTools\")\n| where ( OSAdministrator_s != \"ITG-ADMIN\")\n| where ( OSAdministrator_s != \"InfoSec Secure Environment\")\n| where ( OSAdministrator_s != \"ExNet Security\")\n| where ( OSAdministrator_s != \"uart2svc\")\n| where ( OSAdministrator_s != \"Jit_ITG-GCO_ElevatedAccess\") \n| where ( OSAdministrator_s != \"Jit_SDO-DCOPS-ADMIN_ElevatedAccess\")  \n| where ( OSAdministrator_s != \"JIT_CFE-MSInvoice-PPE-REDMOND_ElevatedAccess\")  \n| where ( OSAdministrator_s != \"Jit_DCTools-Admin_ElevatedAccess\")\n| where ( OSAdministrator_s != \"invgmsasvcp\")\n| where ( OSAdministrator_s != \"invgmsasvcp$\")\n| where ( OSAdministrator_s != \"Jit_ISRM-SecOps-InfoSecSecureEnv_ElevatedAccess\")\n| where ( OSAdministrator_s != \"SA_InfoSec-Secure-Environment_ElevatedAccess\")\n| where ( OSAdministrator_s != \"JIT_ExNet-Security-partners_ElevatedAccess\")\n| where ( OSAdministrator_s != \"SA_ExNet-Security-partners_ElevatedAccess\")\n| where ( OSAdministrator_s != \"invoiceprdstg$\")\n| where ( OSAdministrator_s != \"capscansvc\")\n| where ( OSAdministrator_s != \"capscansvc$\")",
+            "timeAggregation": "Count",
+            "operator": "GreaterThan",
+            "threshold": 0,
+            "failingPeriods": {
+              "numberOfEvaluationPeriods": 1,
+              "minFailingPeriodsToAlert": 1
+            }
+          }
+        ]
+      },
+      {
+        "isCreate": true,
+        "name": "Cache-Buffer-Size",
+        "description": "App Fabric Cache Buffer is not big enough",
+        "resourceIdScope": "[parameters('resourceNames').workspaceId]",
+        "actionGroupId": "[variables('actionGroupsIds').createICM]",
+        "severity": 3,
+        "enabled": true,
+        "muteActionsDuration": "PT60M",
+        "evaluationFrequency": "PT5M",
+        "windowSize": "PT5M",
+        "criteriaDetails": [
+          {
+            "query": "Event | where EventLevelName == \"error\"| where Source == \"MSInvoice\"| where ParameterXml has \"The connection was terminated, possibly due to server or network problems or serialized Object size is greater than MaxBufferSize on server\"",
+            "timeAggregation": "Count",
+            "operator": "GreaterThan",
+            "threshold": 0,
+            "failingPeriods": {
+              "numberOfEvaluationPeriods": 1,
+              "minFailingPeriodsToAlert": 1
+            }
+          }
+        ]
+      },
+      {
+        "isCreate": true,
+        "name": "Tax-Jurisdiction-Error",
+        "description": "",
+        "resourceIdScope": "[parameters('resourceNames').workspaceId]",
+        "actionGroupId": "[variables('actionGroupsIds').createICM]",
+        "severity": 4,
+        "enabled": true,
+        "muteActionsDuration": "PT60M",
+        "evaluationFrequency": "PT5M",
+        "windowSize": "PT5M",
+        "criteriaDetails": [
+          {
+            "query": "Event | where Source == \"Z_Rfc_Calculate_Tax_Amnt\" | where ParameterXml has \"Cannot find tax area\"",
+            "timeAggregation": "Count",
+            "operator": "GreaterThan",
+            "threshold": 0,
+            "failingPeriods": {
+              "numberOfEvaluationPeriods": 1,
+              "minFailingPeriodsToAlert": 1
+            }
+          }
+        ]
+      },
+      {
+        "isCreate": true,
+        "name": "Classic-Assembly-Missing",
+        "description": "Detected conflict or missing DLLs in the system. GAC could help here",
+        "resourceIdScope": "[parameters('resourceNames').workspaceId]",
+        "actionGroupId": "[variables('actionGroupsIds').createICM]",
+        "severity": 3,
+        "enabled": true,
+        "muteActionsDuration": "PT60M",
+        "evaluationFrequency": "PT5M",
+        "windowSize": "PT5M",
+        "criteriaDetails": [
+          {
+            "query": "Event\n| where ParameterXml contains \"Could not load file or assembly\" ",
+            "timeAggregation": "Count",
+            "operator": "GreaterThan",
+            "threshold": 0,
+            "failingPeriods": {
+              "numberOfEvaluationPeriods": 1,
+              "minFailingPeriodsToAlert": 1
+            }
+          }
+        ]
+      },
+      {
+        "isCreate": true,
+        "name": "Cluster-Quorum-Failure",
+        "description": "Detected Issues With The Cluster Quorum",
+        "resourceIdScope": "[parameters('resourceNames').workspaceId]",
+        "actionGroupId": "[variables('actionGroupsIds').createICM]",
+        "severity": 3,
+        "enabled": true,
+        "muteActionsDuration": "PT60M",
+        "evaluationFrequency": "PT5M",
+        "windowSize": "PT5M",
+        "criteriaDetails": [
+          {
+            "query": "Event\n| where ( EventID == 1564 )",
+            "timeAggregation": "Count",
+            "operator": "GreaterThan",
+            "threshold": 0,
+            "failingPeriods": {
+              "numberOfEvaluationPeriods": 1,
+              "minFailingPeriodsToAlert": 1
+            }
+          }
+        ]
+      },
+      {
+        "isCreate": true,
+        "name": "Server-Ping-Test-Failure",
+        "description": "Heartbeat of VM/s has not been reported",
+        "resourceIdScope": "[parameters('resourceNames').workspaceId]",
+        "actionGroupId": "[variables('actionGroupsIds').createICM]",
+        "severity": 3,
+        "enabled": true,
+        "muteActionsDuration": "PT60M",
+        "evaluationFrequency": "PT5M",
+        "windowSize": "PT5M",
+        "criteriaDetails": [
+          {
+            "query": "Heartbeat\n| where Computer in (['GetAllComputers'])",
+            "timeAggregation": "Count",
+            "operator": "LessThan",
+            "threshold": 1,
+            "failingPeriods": {
+              "numberOfEvaluationPeriods": 1,
+              "minFailingPeriodsToAlert": 1
+            }
+          }
+        ]
+      },
+      {
+        "isCreate": true,
+        "name": "Windows-Service-Stopped",
+        "description": "One of the Windows services have stopped, please go to the logs, identify the service name, and start the service",
+        "resourceIdScope": "[parameters('resourceNames').workspaceId]",
+        "actionGroupId": "[variables('actionGroupsIds').createICM]",
+        "severity": 3,
+        "enabled": true,
+        "muteActionsDuration": "PT60M",
+        "evaluationFrequency": "PT5M",
+        "windowSize": "PT5M",
+        "criteriaDetails": [
+          {
+            "query": "Event\n| where (EventID == 7036 or EventID == 7034)\n| where (RenderedDescription has \"The MSInvoiceEIService\" or RenderedDescription has \"The MSApprovalsNotificationService\" or RenderedDescription has \"The MSInvoiceApprovalService\" or RenderedDescription has \"The MSInvoiceEDIService service\" or RenderedDescription has \"The MSInvoiceEmailService service\" or RenderedDescription has \"The MSInvoiceOCRService service\" or RenderedDescription has \"The InvoiceSAPSyncDb service\")\n| where RenderedDescription contains \"stop\" ",
+            "timeAggregation": "Count",
+            "operator": "GreaterThan",
+            "threshold": 0,
+            "failingPeriods": {
+              "numberOfEvaluationPeriods": 1,
+              "minFailingPeriodsToAlert": 1
+            }
+          }
+        ]
+      },
+      {
+        "isCreate": true,
+        "name": "App-Service-Fabric-Service-Teminated",
+        "description": "App Service Fabric Windows Service stopped",
+        "resourceIdScope": "[parameters('resourceNames').workspaceId]",
+        "actionGroupId": "[variables('actionGroupsIds').createICM]",
+        "severity": 3,
+        "enabled": true,
+        "muteActionsDuration": "PT60M",
+        "evaluationFrequency": "PT5M",
+        "windowSize": "PT5M",
+        "criteriaDetails": [
+          {
+            "query": "Event\n| where Source == 'Service Control Manager' and EventLevelName == 'Error'\nand RenderedDescription contains \"AppFabric Caching Service service terminated unexpectedly\"",
+            "timeAggregation": "Count",
+            "operator": "GreaterThan",
+            "threshold": 0,
+            "failingPeriods": {
+              "numberOfEvaluationPeriods": 1,
+              "minFailingPeriodsToAlert": 1
+            }
+          }
+        ]
+      },
+      {
+        "isCreate": true,
+        "name": "Windows-Service-Failed-To-Start",
+        "description": "App Service Fabric Windows Service stopped",
+        "resourceIdScope": "[parameters('resourceNames').workspaceId]",
+        "actionGroupId": "[variables('actionGroupsIds').createICM]",
+        "severity": 3,
+        "enabled": true,
+        "muteActionsDuration": "PT60M",
+        "evaluationFrequency": "PT5M",
+        "windowSize": "PT5M",
+        "criteriaDetails": [
+          {
+            "query": "Event\n| where EventLevel == 1\n| where RenderedDescription contains \"Service cannot be started\"",
+            "timeAggregation": "Count",
+            "operator": "GreaterThan",
+            "threshold": 0,
+            "failingPeriods": {
+              "numberOfEvaluationPeriods": 1,
+              "minFailingPeriodsToAlert": 1
+            }
+          }
+        ]
+      },
+      {
+        "isCreate": true,
+        "name": "Low-Space-In-Drive",
+        "description": "Detected VM/s drive/s running out of space",
+        "resourceIdScope": "[parameters('resourceNames').workspaceId]",
+        "actionGroupId": "[variables('actionGroupsIds').createICM]",
+        "severity": 3,
+        "enabled": true,
+        "muteActionsDuration": "PT60M",
+        "evaluationFrequency": "PT5M",
+        "windowSize": "PT5M",
+        "criteriaDetails": [
+          {
+            "query": "Perf\n| where InstanceName == \"C:\" or InstanceName == \"D:\" or InstanceName == \"E:\" or InstanceName == \"G:\" or InstanceName == \"H:\" or InstanceName == \"I:\" or InstanceName == \"J:\" or InstanceName == \"K:\" or InstanceName == \"L:\" or InstanceName == \"O:\"\n| where ObjectName == \"LogicalDisk\"\n| where CounterName == \"% Free Space\" \n| summarize AggregatedValue = avg(CounterValue) by bin(TimeGenerated, 30m), Computer, InstanceName\n| sort by TimeGenerated desc\n| where AggregatedValue <5",
+            "timeAggregation": "Count",
+            "operator": "GreaterThan",
+            "threshold": 0,
+            "failingPeriods": {
+              "numberOfEvaluationPeriods": 1,
+              "minFailingPeriodsToAlert": 1
+            }
+          }
+        ]
+      },
+      {
+        "isCreate": true,
+        "name": "Classic-SharePoint-Number-Of-Files-Limitation-Reached",
+        "description": "Detected issues while trying to upload to SharePoint Document collection",
+        "resourceIdScope": "[parameters('resourceNames').workspaceId]",
+        "actionGroupId": "[variables('actionGroupsIds').createICM]",
+        "severity": 3,
+        "enabled": true,
+        "muteActionsDuration": "PT60M",
+        "evaluationFrequency": "PT5M",
+        "windowSize": "PT5M",
+        "criteriaDetails": [
+          {
+            "query": "Event\n| where ParameterXml contains \"The attempted operation is prohibited because it exceeds the list view threshold enforced by the administrator\"\n| where ParameterXml contains \"MS.IT.MSInvoice.DocRepository.DocRepositoryException\"\n| where EventLevelName == \"Error\"",
+            "timeAggregation": "Count",
+            "operator": "GreaterThan",
+            "threshold": 0,
+            "failingPeriods": {
+              "numberOfEvaluationPeriods": 1,
+              "minFailingPeriodsToAlert": 1
+            }
+          }
+        ]
+      },
+      {
+        "isCreate": true,
+        "name": "SAP-RFC-Failures",
+        "description": "SAP Failure Rate has increased to an abnormal level, please see this OneNote page: https://microsoft.sharepoint.com/teams/MicrosoftInvoiceCentral/_layouts/15/Doc.aspx?sourcedoc=%7Bbe0bd05d-2981-4cd2-9d48-4296951bf1b2%7D&action=edit&wd=target%28Production%2FDRI-Readiness%2FDRI-TSG.one%7C24a2422b-2df1-4ea3-9eaa-36be87e9057f%2FAI%20Alert%20SAPRFCFailures%7Ce9005b6e-d06c-4cdc-ac54-3949c4076e9a%2F%29&wdorigin=703&wdpreservelink=1",
+        "resourceIdScope": "[parameters('resourceNames').workspaceId]",
+        "actionGroupId": "[variables('actionGroupsIds').createICM]",
+        "severity": 3,
+        "enabled": true,
+        "muteActionsDuration": "PT60M",
+        "evaluationFrequency": "PT5M",
+        "windowSize": "PT5M",
+        "criteriaDetails": [
+          {
+            "query": "let SuccessResults= Event \n| where TimeGenerated > ago(15m)\n| where toupper(Source) has toupper(\"Z_\") \n| where EventLevelName == \"Information\" \n| where toupper(Source)!='Z_RFC_INVOICEAPPRVL'\n| where ParameterXml !has \"Preparing\"\n| summarize SuccessAggregatedValue = count() by bin(TimeGenerated, 15m), EventLevelName, RFCName=toupper(Source); SuccessResults \n| join kind= rightouter  ( Event\n| where TimeGenerated > ago(15m) \n| where toupper(Source) has toupper(\"Z_\") \n| where EventLevelName == \"Error\" \n| where toupper(Source)!='Z_RFC_INVOICEAPPRVL'\n| where ParameterXml !has \"Preparing\"\n| summarize ErrorAggregatedValue = count() by ErrorTime=bin(TimeGenerated, 15m), EventLevelName, RFCName2=toupper(Source) ) on $left.RFCName == $right.RFCName2 and $left.TimeGenerated ==$right.ErrorTime\n| summarize by Time=iff(isnull(TimeGenerated),ErrorTime,TimeGenerated),  RFC_Name=iff(isnull(SuccessAggregatedValue),RFCName2,RFCName) , Success = iff(isnull(SuccessAggregatedValue), 0,SuccessAggregatedValue),  Error=ErrorAggregatedValue\n| extend PercentFailure = (Error*100)/(Success + Error) \n| where (Success + Error) > 30\n| where PercentFailure > 30\n| project Time, RFC_Name, Success, Error,PercentFailure ",
+            "timeAggregation": "Count",
+            "operator": "GreaterThan",
+            "threshold": 0,
+            "failingPeriods": {
+              "numberOfEvaluationPeriods": 1,
+              "minFailingPeriodsToAlert": 1
+            }
+          }
+        ]
+      },
+      {
+        "isCreate": true,
+        "name": "Empty-App-Fabric-Cache",
+        "description": "Detected empty cache",
+        "resourceIdScope": "[parameters('resourceNames').workspaceId]",
+        "actionGroupId": "[variables('actionGroupsIds').createICM]",
+        "severity": 3,
+        "enabled": true,
+        "muteActionsDuration": "PT60M",
+        "evaluationFrequency": "PT5M",
+        "windowSize": "PT5M",
+        "criteriaDetails": [
+          {
+            "query": "Event| where ParameterXml has \"ApplicationError.aspx\"| where ParameterXml has \"MS.IT.MSInvoice.EntLib.VelocityCache.ApplicationCacheManager.GetDataFromCache(String key)\"",
+            "timeAggregation": "Count",
+            "operator": "GreaterThan",
+            "threshold": 0,
+            "failingPeriods": {
+              "numberOfEvaluationPeriods": 1,
+              "minFailingPeriodsToAlert": 1
+            }
+          }
+        ]
+      },
+      {
+        "isCreate": "[if(contains(toupper(parameters('resourceNames').environment),'PRD'),true(),false())]",
+        "name": "VM-Backup-Failure",
+        "description": "VM Backup has failed",
+        "resourceIdScope": "[parameters('resourceNames').workspaceId]",
+        "actionGroupId": "[variables('actionGroupsIds').createICM]",
+        "severity": 3,
+        "enabled": true,
+        "muteActionsDuration": "PT60M",
+        "evaluationFrequency": "PT5M",
+        "windowSize": "PT5M",
+        "criteriaDetails": [
+          {
+            "query": "AzureDiagnostics\n| where TimeGenerated > ago(3d)\n| where ( ResourceType == \"VAULTS\" )\n| where ( JobOperation_s == \"Backup\" )\n| where JobFailureCode_s != \"Success\"\n| where ProtectedContainerUniqueId_s has 'iaasvmcontainerv2'\n | summarize FailureCount=count() by ProtectedContainerUniqueId_s \n| where FailureCount >1",
+            "timeAggregation": "Count",
+            "operator": "GreaterThan",
+            "threshold": 0,
+            "failingPeriods": {
+              "numberOfEvaluationPeriods": 1,
+              "minFailingPeriodsToAlert": 1
+            }
+          }
+        ]
+      },
+      {
+        "isCreate": true,
+        "name": "SAP-Connectivity-Failures",
+        "description": "SAP Connectivity Failures",
+        "resourceIdScope": "[parameters('resourceNames').workspaceId]",
+        "actionGroupId": "[variables('actionGroupsIds').createICM]",
+        "severity": 3,
+        "enabled": true,
+        "muteActionsDuration": "PT60M",
+        "evaluationFrequency": "PT5M",
+        "windowSize": "PT5M",
+        "criteriaDetails": [
+          {
+            "query": "Event\n| where ParameterXml has \"Connect To SAP gateway failed Connect\"",
+            "timeAggregation": "Count",
+            "operator": "GreaterThan",
+            "threshold": 0,
+            "failingPeriods": {
+              "numberOfEvaluationPeriods": 1,
+              "minFailingPeriodsToAlert": 1
+            }
+          }
+        ]
+      },
+      {
+        "isCreate": true,
+        "name": "DB-Sync-Windows-Service-Failures",
+        "description": "SAP DB Sync Windows Service is failing to complete sync jobs",
+        "resourceIdScope": "[parameters('resourceNames').workspaceId]",
+        "actionGroupId": "[variables('actionGroupsIds').createICM]",
+        "severity": 3,
+        "enabled": true,
+        "muteActionsDuration": "PT60M",
+        "evaluationFrequency": "PT5M",
+        "windowSize": "PT5M",
+        "criteriaDetails": [
+          {
+            "query": "Event\n| where Source == \"InvoiceSAPSyncDb\"\n| where EventLevelName == \"Error\"",
+            "timeAggregation": "Count",
+            "operator": "GreaterThan",
+            "threshold": 0,
+            "failingPeriods": {
+              "numberOfEvaluationPeriods": 1,
+              "minFailingPeriodsToAlert": 1
+            }
+          }
+        ]
+      },
+      {
+        "isCreate": "[if(contains(toupper(parameters('resourceNames').environment),'PRD'),true(),false())]",
+        "name": "UnHealthy-File-Cluster-Share",
+        "description": "",
+        "resourceIdScope": "[parameters('resourceNames').workspaceId]",
+        "actionGroupId": "[variables('actionGroupsIds').createICM]",
+        "severity": 3,
+        "enabled": true,
+        "muteActionsDuration": "PT60M",
+        "evaluationFrequency": "PT5M",
+        "windowSize": "PT5M",
+        "criteriaDetails": [
+          {
+            "query": "ClusterVirtualDisk_CL | where (State_s != \"0\" and State_s!=\"Healthy\" )",
+            "timeAggregation": "Count",
+            "operator": "GreaterThan",
+            "threshold": 0,
+            "failingPeriods": {
+              "numberOfEvaluationPeriods": 1,
+              "minFailingPeriodsToAlert": 1
+            }
+          }
+        ]
+      },
+      {
+        "isCreate": true,
+        "name": "DMS Down Notification Alert",
+        "description": "If DMS is down, trigger alert & raise sev3 incident.",
+        "resourceIdScope": "[parameters('resourceNames').appInsightsId]",
+        "actionGroupId": "[variables('actionGroupsIds').createICM]",
+        "severity": 3,
+        "enabled": true,
+        "muteActionsDuration": "PT3H",
+        "evaluationFrequency": "PT5M",
+        "windowSize": "PT5M",
+        "criteriaDetails": [
+          {
+            "query": "exceptions\n| extend\n    Origin = tostring(customDimensions[\"Origin\"]),\n    Component = tostring(customDimensions[\"Component\"])\n| where Origin contains \"DMSUploadService\"\n| where timestamp > ago(5m)\n\n",
+            "timeAggregation": "Count",
+            "operator": "GreaterThan",
+            "threshold": 0,
+            "failingPeriods": {
+              "numberOfEvaluationPeriods": 1,
+              "minFailingPeriodsToAlert": 1
+            }
+          }
+        ]
+      },
+      {
+        "isCreate": true,
+        "name": "MSInvoiceEndPointUnavailable",
+        "description": "Trigger AppInsights alert to fininvdri@microsoft.com if https://einvoice.microsoft.com service is down.",
+        "resourceIdScope": "[parameters('resourceNames').appInsightsId]",
+        "actionGroupId": "[variables('actionGroupsIds').createICM]",
+        "severity": 3,
+        "enabled": true,
+        "muteActionsDuration": "PT3H",
+        "evaluationFrequency": "PT5M",
+        "windowSize": "PT5M",
+        "criteriaDetails": [
+          {
+            "query": "availabilityResults\n| where success != 1\n| where customDimensions.Category <> \"Function.PurchaseOrderServiceHeartbeat\"\n| where customDimensions.Category <> \"Function.CompanyConfigurationHeartbeat\"\n| summarize Count = count() by location\n| where (location has \"Asia\" and Count > 0)\n  or (location has \"US\" and Count > 0)\n  or (location !contains \"Asia\" and location !contains \"US\" and Count >= 3)\n",
+            "timeAggregation": "Count",
+            "operator": "GreaterThan",
+            "threshold": 0,
+            "failingPeriods": {
+              "numberOfEvaluationPeriods": 1,
+              "minFailingPeriodsToAlert": 1
+            }
+          }
+        ]
+      },
+      {
+        "isCreate": true,
+        "name": "Server 500 Error Notification Alert",
+        "description": "Request thowing error with 500 result code",
+        "resourceIdScope": "[parameters('resourceNames').appInsightsId]",
+        "actionGroupId": "[variables('actionGroupsIds').createICM]",
+        "severity": 4,
+        "enabled": true,
+        "muteActionsDuration": null,
+        "evaluationFrequency": "PT15M",
+        "windowSize": "PT15M",
+        "criteriaDetails": [
+          {
+            "query": "requests\n| where resultCode == \"500\"\n| where timestamp > ago(15min)\n\n",
+            "timeAggregation": "Count",
+            "operator": "GreaterThan",
+            "threshold": 60,
+            "failingPeriods": {
+              "numberOfEvaluationPeriods": 1,
+              "minFailingPeriodsToAlert": 1
+            }
+          }
+        ]
+      },
+      {
+        "isCreate": true,
+        "name": "Successful LoggedIn Users with No Roles in EUA",
+        "description": "This alerts when user successfully logins to Vnext UI but has roles returned from EUA",
+        "resourceIdScope": "[parameters('resourceNames').appInsightsId]",
+        "actionGroupId": "[variables('actionGroupsIds').createICM]",
+        "severity": 4,
+        "enabled": true,
+        "muteActionsDuration": null,
+        "evaluationFrequency": "PT1H",
+        "windowSize": "PT1H",
+        "criteriaDetails": [
+          {
+            "query": "traces\n| where message == 'Response from EUA'\n| extend EmailAddress = tostring(parse_json(tostring(parse_json(tostring(customDimensions.ResponseBody)).AuthClaims)).UserEmail)\n| extend SupplierId = tostring(parse_json(tostring(parse_json(tostring(parse_json(tostring(customDimensions.ResponseBody)).AuthClaims)).Supplier))[0].SupplierId)\n| extend  Roles = tostring(parse_json(tostring(parse_json(tostring(parse_json(tostring(customDimensions.ResponseBody)).AuthClaims)).Supplier)))\n| join kind=inner (\ncustomEvents\n| where customDimensions['Origin'] in ('UI')\n| where operation_Name has_any ('supplier/invoices')\n| where customDimensions.EnvironmentInstance == \"prod-vnext\"\n| where name == 'msal:loginSuccess'\n| extend EmailAddress= tostring(user_Id)\n) on EmailAddress\n| project EmailAddress, SupplierId, Roles, timestamp\n| where Roles == \"[]\"\n\n",
+            "timeAggregation": "Count",
+            "operator": "GreaterThan",
+            "threshold": 0,
+            "failingPeriods": {
+              "numberOfEvaluationPeriods": 1,
+              "minFailingPeriodsToAlert": 1
+            }
+          }
+        ]
+      },
+      {
+        "isCreate": true,
+        "name": "Failed Park Doc Report Alert",
+        "description": "Alert for failed Park Doc Report",
+        "resourceIdScope": "[parameters('resourceNames').appInsightsId]",
+        "actionGroupId": "[variables('actionGroupsIds').createICM]",
+        "severity": 4,
+        "enabled": true,
+        "muteActionsDuration": null,
+        "evaluationFrequency": "P1D",
+        "windowSize": "P1D",
+        "criteriaDetails": [
+          {
+            "query": "union isfuzzy=true\n    traces\n| where timestamp >= ago(1d)\n| where customDimensions[\"Origin\"] in (\"InvoiceSAPSyncDbWindowsService\")\n| where message contains \"Finished retrieving 0 pending\"\n| summarize Count = count() by message\n| order by message desc\n| where Count >= 8\n",
+            "timeAggregation": "Count",
+            "operator": "GreaterThan",
+            "threshold": 0,
+            "failingPeriods": {
+              "numberOfEvaluationPeriods": 1,
+              "minFailingPeriodsToAlert": 1
+            }
+          }
+        ]
+      },
+      {
+        "isCreate": true,
+        "name": "Purchase Classification Returns no Response",
+        "description": "Trigger an alert when purchase classification returns no response.",
+        "resourceIdScope": "[parameters('resourceNames').appInsightsId]",
+        "actionGroupId": "[variables('actionGroupsIds').createICM]",
+        "severity": 4,
+        "enabled": true,
+        "muteActionsDuration": null,
+        "evaluationFrequency": "P1D",
+        "windowSize": "P1D",
+        "criteriaDetails": [
+          {
+            "query": "union isfuzzy=true dependencies\n| where timestamp > ago(24h)\n| where customDimensions[\"Origin\"] in (\"InvoiceService\")\n| where target == \"https://procurementdataservices.azurewebsites.net/\"\n| order by timestamp desc\n| extend classificationId = customDimensions.classificationId\n| extend ResultCount = tostring(parse_json(tostring(customDimensions.ReturnResult)).Count) | where ResultCount == \"0\"\n",
+            "timeAggregation": "Count",
+            "operator": "GreaterThan",
+            "threshold": 0,
+            "failingPeriods": {
+              "numberOfEvaluationPeriods": 1,
+              "minFailingPeriodsToAlert": 1
+            }
+          }
+        ]
+      },
+      {
+        "isCreate": true,
+        "name": "EUA Service call failed",
+        "description": "This alerts when API service call to to EUA fails.",
+        "resourceIdScope": "[parameters('resourceNames').appInsightsId]",
+        "actionGroupId": "[variables('actionGroupsIds').createICM]",
+        "severity": 3,
+        "enabled": true,
+        "muteActionsDuration": "PT3H",
+        "evaluationFrequency": "PT15M",
+        "windowSize": "PT15M",
+        "criteriaDetails": [
+          {
+            "query": "dependencies\n| where customDimensions.Origin == \"AuthorizationManagementService\"\n| where target contains \"https://euaaccesssupplierservice\"\n| summarize\nSuccess = sumif(itemCount, success == true),\nFailed = sumif(itemCount, success == false)\nby client_StateOrProvince\n| where Failed > 5\n| project\nReliability = todouble(Success) * 100 / todouble(Success + Failed),\nclient_StateOrProvince",
+            "timeAggregation": "Average",
+            "metricMeasureColumn": "Reliability",
+            "operator": "LessThan",
+            "threshold": 99.99,
+            "failingPeriods": {
+              "numberOfEvaluationPeriods": 1,
+              "minFailingPeriodsToAlert": 1
+            }
+          }
+        ]
+      },
+      {
+        "isCreate": true,
+        "name": "SLM compliance block response true",
+        "description": "This alerts when SLM Compliance block response is true",
+        "resourceIdScope": "[parameters('resourceNames').appInsightsId]",
+        "actionGroupId": "[variables('actionGroupsIds').createICM]",
+        "severity": 4,
+        "enabled": true,
+        "muteActionsDuration": "PT3H",
+        "evaluationFrequency": "PT1H",
+        "windowSize": "PT1H",
+        "criteriaDetails": [
+          {
+            "query": "customEvents\n| where customDimensions.FeatureName == \"Compliance Block\"\n| where name == \"Response from SLM\"\n| extend SupplierId_ = tostring(parse_json(tostring(parse_json(tostring(customDimensions.ResponseBody)).Data)).SupplierId)\n| extend ComplianceBlock = tostring(customDimensions.ComplianceBlock)\n| where customDimensions.ComplianceBlock == \"True\"\n",
+            "timeAggregation": "Count",
+            "operator": "GreaterThan",
+            "threshold": 0,
+            "failingPeriods": {
+              "numberOfEvaluationPeriods": 1,
+              "minFailingPeriodsToAlert": 1
+            }
+          }
+        ]
+      },
+      {
+        "isCreate": true,
+        "name": "Failed Metadata-Get Tax Alert",
+        "description": "This alert when there are tax exceptions in modern supplier UI",
+        "resourceIdScope": "[parameters('resourceNames').appInsightsId]",
+        "actionGroupId": "[variables('actionGroupsIds').createICM]",
+        "severity": 4,
+        "enabled": true,
+        "muteActionsDuration": "PT3H",
+        "evaluationFrequency": "PT1H",
+        "windowSize": "PT1H",
+        "criteriaDetails": [
+          {
+            "query": "union isfuzzy=true exceptions\n| extend message_ = tostring(parse_json(tostring(parse_json(tostring(parse_json(tostring(customDimensions.Response))[0].errors)).overall))[0].message)\n| where customDimensions[\"Origin\"] in (\"UI\") and problemId !contains (\"ErrorEvent: Script error.\")\n| where type contains \"Metadata - Get Tax\"\n| where message_ contains \"Object reference not set to an instance of an object\"\n| where timestamp > ago(1h)\n| distinct tostring(customDimensions.XCV)\n\n",
+            "timeAggregation": "Count",
+            "operator": "GreaterThan",
+            "threshold": 0,
+            "failingPeriods": {
+              "numberOfEvaluationPeriods": 1,
+              "minFailingPeriodsToAlert": 1
+            }
+          }
+        ]
+      },
+      {
+        "isCreate": true,
+        "name": "SharePoint-Authorization-Error",
+        "description": "This a temp sev 3 alert. When this alert is trigger, We need to do IIS reset in the server that is currently taking traffic, most likely IIS1. bring passive server online, bring active server offline. \nOpen CMD in server and do iis reset once that is complete, bring iis1 back as the only active. https://microsoft.sharepoint.com/teams/MicrosoftInvoiceCentral/_layouts/OneNote.aspx?id=%2Fteams%2FMicrosoftInvoiceCentral%2FSiteAssets%2FMicrosoft%20Invoice%20Central%20Notebook&wd=target%28Production%2FDRI-Readiness%2FDRI-TSG.one%7C24A2422B-2DF1-4EA3-9EAA-36BE87E9057F%2FTake%20an%20IIS%20node%20offline%20and%20online%7CD33C233B-4DB0-48DB-89EE-7D864F179549%2F%29\nonenote:https://microsoft.sharepoint.com/teams/MicrosoftInvoiceCentral/SiteAssets/Microsoft%20Invoice%20Central%20Notebook/Production/DRI-Readiness/DRI-TSG.one#Take%20an%20IIS%20node%20offline%20and%20online&section-id={24A2422B-2DF1-4EA3-9EAA-36BE87E9057F}&page-id={D33C233B-4DB0-48DB-89EE-7D864F179549}&object-id={38BA19D6-D20E-04B2-1D11-637ADAC14792}&12",
+        "resourceIdScope": "[parameters('resourceNames').workspaceId]",
+        "actionGroupId": "[variables('actionGroupsIds').createICM]",
+        "severity": 3,
+        "enabled": true,
+        "muteActionsDuration": "PT2H",
+        "evaluationFrequency": "PT15M",
+        "windowSize": "PT15M",
+        "criteriaDetails": [
+          {
+            "query": "Event\n| where ParameterXml contains \"An exception of type 'MS.IT.MSInvoice.DocRepository.DocRepositoryException' occurred and was caught.\"\n| where ParameterXml contains \"The remote server returned an error: (401) Unauthorized.\"\n\n",
+            "timeAggregation": "Count",
+            "operator": "GreaterThan",
+            "threshold": 0,
+            "failingPeriods": {
+              "numberOfEvaluationPeriods": 1,
+              "minFailingPeriodsToAlert": 1
+            }
+          }
+        ]
+      },
+      {
+        "isCreate": true,
+        "name": "SAP-MRM_QUANTITY_CHECK-ERROR",
+        "description": "This alert is triggered when a configuration in SAP is violated by creating a PO that has too many invoices in the same line. In order to fix this, SAP and AP team need to work together break the remaining amount on the line to a new line and resubmit the invoices. The failing invoices would have to be deleted. AP will take care of it",
+        "resourceIdScope": "[parameters('resourceNames').workspaceId]",
+        "actionGroupId": "[variables('actionGroupsIds').createICM]",
+        "severity": 4,
+        "enabled": true,
+        "muteActionsDuration": "PT2H",
+        "evaluationFrequency": "PT15M",
+        "windowSize": "PT15M",
+        "criteriaDetails": [
+          {
+            "query": "Event\n| where ParameterXml contains \"MRM_QUANTITY_CHECK\"\n",
+            "timeAggregation": "Count",
+            "operator": "GreaterThan",
+            "threshold": 0,
+            "failingPeriods": {
+              "numberOfEvaluationPeriods": 1,
+              "minFailingPeriodsToAlert": 1
+            }
+          }
+        ]
+      },
+      {
+        "isCreate": true,
+        "name": "A-KeyVault-Item-Is-Near-Expiration",
+        "description": "This Alert triggers when a Keyvault item is about to expire. Review the Log, identify the secret, plan rotation, rotate the Item and disable the old item",
+        "resourceIdScope": "[parameters('resourceNames').workspaceId]",
+        "actionGroupId": "[variables('actionGroupsIds').createICM]",
+        "severity": 4,
+        "enabled": true,
+        "muteActionsDuration": null,
+        "evaluationFrequency": "P1D",
+        "windowSize": "P1D",
+        "criteriaDetails": [
+          {
+            "query": "AzureDiagnostics \n| where Resource contains \"APPKVCLASSIC\" or Resource contains \"GLOBAL\"\n| where OperationName contains \"Expiry\"\n",
+            "timeAggregation": "Count",
+            "operator": "GreaterThan",
+            "threshold": 0,
+            "failingPeriods": {
+              "numberOfEvaluationPeriods": 1,
+              "minFailingPeriodsToAlert": 1
+            }
+          }
+        ]
+      },
+      {
+        "isCreate": "[if(contains(toupper(parameters('resourceNames').environment),'PRD'),true(),false())]",
+        "name": "Classic Certificate Expiring in 30 Days",
+        "description": "These certificates are installed in IaaS VMs, please review the logs to identify where the certificates need to be renewed and renew the those certificates",
+        "resourceIdScope": "[parameters('resourceNames').workspaceId]",
+        "actionGroupId": "[variables('actionGroupsIds').createICM]",
+        "severity": 4,
+        "enabled": true,
+        "muteActionsDuration": null,
+        "evaluationFrequency": "P1D",
+        "windowSize": "P1D",
+        "criteriaDetails": [
+          {
+            "query": "CurrentCerts_CL \n| where Subject_s !contains 'ASR_CLO'\n| where Subject_s !contains \"Azure Backup\"\n| where Subject_s !contains \"CN=AzureDSCExtension\"\n| where Subject_s !contains \"CN=CLIUSR\"\n| where Subject_s !contains \"DC=Windows Azure CRP Certificate Generator\"\n| where Subject_s !contains \"localhost\"\n| where Subject_s !contains \"CN=583c74ec-ca41-4bfc-abe4-c64779843ba3\"\n| where Subject_s !contains \"CN=cd3016cb-2bd7-4c84-a10f-6762dbe6abea\"\n| where Subject_s !contains \"CN=06bf9e9f-87bc-4adc-94f3-1181e90718c7\"\n| where Subject_s !contains \"CN=421f5a6b-13c3-4719-be8e-134131626390\"\n| where Subject_s !contains \"CN=7187a882-533e-4706-8166-cb65ecda1515\"\n| where Subject_s !contains \"CN=90f8f707-89bd-4d1e-9ac2-d60c60055d78\"\n| where Subject_s !contains \"CN=ef4127ed-b335-4db4-8421-e46f7bf0bcdd\"\n| where Subject_s !contains \"CN=e39684e4-a422-4693-a359-08b767ebeafa\"\n| where Subject_s !contains \"CN=d58dad7b-df60-4fab-9dd7-4acedde6db8a\"\n| where Subject_s !contains \"CN=c0d0fca3-a73a-4ad4-ae0e-b5677ce9bf4a\"\n| where Subject_s !contains \"CN=c0d0fca3-a73a-4ad4-ae0e-b5677ce9bf4a\"\n| where Subject_s !contains \"CN=aad.einvoice.microsoft.com\"\n| where Subject_s !contains \"CN=einvoice.aad.invoice.microsoft.com\"\n| where Subject_s !contains \"CN=aad.invoice.microsoft.com\"\n| where Subject_s !contains \"AzureServiceFabric\"\n| where Subject_s !contains \"CN=Microsoft IT TLS CA 1, OU=Microsoft IT, O=Microsoft Corporation, L=Redmond, S=Washington, C=US\"\n| where Subject_s !contains \"CN=Baltimore CyberTrust Root, OU=CyberTrust, O=Baltimore, C=IE\"\n| where Subject_s !contains \"CN=Microsoft RSA TLS CA 01, O=Microsoft Corporation, C=US\"\n| where Subject_s !contains \"CN=https://eus2-agentservice-prod-1.azure-automation.net/accounts\"\n| where TimeGenerated >ago(2h)\n| summarize by ServerName_s, Subject_s,FriendlyName_s,Expiration_t\n| where Expiration_t > ago(1h)\n| where Expiration_t < ago(-31d)\n",
+            "timeAggregation": "Count",
+            "operator": "GreaterThan",
+            "threshold": 0,
+            "failingPeriods": {
+              "numberOfEvaluationPeriods": 1,
+              "minFailingPeriodsToAlert": 1
+            }
+          }
+        ]
+      },
+      {
+        "isCreate": true,
+        "name": "AI-Assembly-Missing",
+        "description": "Detected conflict or missing DLLs in the system. GAC could help here",
+        "resourceIdScope": "[parameters('resourceNames').appInsightsId]",
+        "actionGroupId": "[variables('actionGroupsIds').createICM]",
+        "severity": 3,
+        "enabled": true,
+        "muteActionsDuration": null,
+        "evaluationFrequency": "PT5M",
+        "windowSize": "PT5M",
+        "criteriaDetails": [
+          {
+            "query": "exceptions | where outerMessage contains \"Could not load file or assembly\"",
+            "timeAggregation": "Count",
+            "operator": "GreaterThan",
+            "threshold": 0,
+            "failingPeriods": {
+              "numberOfEvaluationPeriods": 1,
+              "minFailingPeriodsToAlert": 1
+            }
+          }
+        ]
+      },
+      {
+        "isCreate": true,
+        "name": "Document-Failed-Sync-To-Classic",
+        "description": "find the OCR node and restart it You need to sync these documents manually for reporting.",
+        "resourceIdScope": "[parameters('resourceNames').appInsightsId]",
+        "actionGroupId": "[variables('actionGroupsIds').createICM]",
+        "severity": 3,
+        "enabled": true,
+        "muteActionsDuration": null,
+        "evaluationFrequency": "PT5M",
+        "windowSize": "PT5M",
+        "criteriaDetails": [
+          {
+            "query": "let failed_sync = dependencies\n| where customDimensions[\"Origin\"] in (\"InvoiceSyncService\")\n| where success in (\"False\") and name contains \"documentmetadata\"\n| extend document_id = extract(\"([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\", 1, name)\n| order by timestamp desc\n| project timestamp, document_id, name, cloud_RoleInstance;\n\nlet sync_messages = traces\n| where message contains \"DocumentRequestMessage received for document id:\"\n| extend invoice_number = extract(\"([0-9]{10})\", 1, message)\n| extend document_id = extract(\"([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\", 1, message)\n| order by timestamp desc\n| project timestamp, invoice_number, document_id, message;\n\nfailed_sync\n| join kind=inner (sync_messages) on $left.document_id == $right.document_id",
+            "timeAggregation": "Count",
+            "operator": "GreaterThan",
+            "threshold": 0,
+            "failingPeriods": {
+              "numberOfEvaluationPeriods": 1,
+              "minFailingPeriodsToAlert": 1
+            }
+          }
+        ]
+      },
+      {
+        "isCreate": true,
+        "name": "Z_Rfc_Invoiceapprvl-SAP-Runtime-Error-Count-Greater-Than-Threshold",
+        "description": "This alert rule will fire when there are more than 0 records indicating there was a runtime error (e.g. DB Lock) when calling Z_Rfc_Invoiceapprvl. Please check the query for the document number and the error message for more details.",
+        "resourceIdScope": "[parameters('resourceNames').workspaceId]",
+        "actionGroupId": "[variables('actionGroupsIds').createICM]",
+        "severity": 4,
+        "enabled": true,
+        "muteActionsDuration": null,
+        "evaluationFrequency": "P1D",
+        "windowSize": "P1D",
+        "criteriaDetails": [
+          {
+            "query": "Event\n | where Source == \"Z_Rfc_Invoiceapprvl\" and ParameterXml has '\"Out_Rc\":\"18\"'\n | extend parsedXml = parse_xml(ParameterXml)\n | extend xmlInnerText = tostring(parsedXml[\"Param\"][\"#text\"])\n | extend requestTextSplit = parse_json(split(xmlInnerText, \"Request: \"))[1]\n | extend responseTextSplit = parse_json(split(requestTextSplit, \"Response: \"))\n | extend requestJson = responseTextSplit[0]\n | extend responseJson = responseTextSplit[1]\n | extend returnCode = parse_json(tostring(responseJson)).Out_Rc\n | extend responseMessage = parse_json(tostring(parse_json(tostring(responseJson)).Tbl_Tc_Message)).[0].MSGTX\n | extend documentNumber = parse_json(tostring(requestJson)).In_Doc_Num\n | project TimeGenerated, documentNumber, returnCode, responseMessage",
+            "timeAggregation": "Count",
+            "operator": "GreaterThan",
+            "threshold": 0,
+            "failingPeriods": {
+              "numberOfEvaluationPeriods": 1,
+              "minFailingPeriodsToAlert": 1
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "resources": [
+    {
+      "name": "CreateAlertsActionGroups",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonResourceGroupName]",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'Insights-template-insights-action-group', '/versions/v1')]"
+        },
+        "parameters": {
+          "actionGroupDetails": {
+            "value": "[variables('alertsActionGroups')]"
+          }
+        }
+      }
+    },
+    {
+      "name": "AddSavedSearches",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonResourceGroupName]",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'LogAnalytics-template-logAnalytics-savedSearch', '/versions/v1')]"
+        },
+        "parameters": {
+          "workspaceName": {
+            "value": "[parameters('resourceNames').workspaceName]"
+          },
+          "savedSearchDetails": {
+            "value": "[variables('logAnalyticsFunctions')]"
+          }
+        }
+      }
+    },
+    {
+      "name": "CreateAlerts",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonResourceGroupName]",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+        "CreateAlertsActionGroups",
+        "AddSavedSearches"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'Insights-template-insights-alert', '/versions/v1')]"
+        },
+        "parameters": {
+          "alertDetails": {
+            "value": "[variables('alerts')]"
+          }
+        }
+      }
+    }
+  ],
+  "outputs": {
+  }
+}

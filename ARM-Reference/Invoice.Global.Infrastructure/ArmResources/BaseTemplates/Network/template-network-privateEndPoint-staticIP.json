@@ -1,0 +1,82 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "privateEndpointName": {
+      "type": "String"
+    },
+    "customNetworkInterfaceName": {
+      "type": "String"
+    },
+    "location": {
+      "type": "String"
+    },
+    "privateLinkServiceId": {
+      "type": "String",
+      "metadata": {
+        "description": "The resource id of the service that will be linked"
+      }
+    },
+    "virtualNetworkId": {
+      "type": "String",
+      "metadata": {
+        "description": "The resource id of the Virtual Network that will be used"
+      }
+    },
+    "virtualNetworkSubnetName": {
+      "type": "String",
+      "metadata": {
+        "description": "the Virtual Network Subnet Name that will be used"
+      }
+    },
+    "ipConfigurations": {
+      "type": "array",
+      "defaultValue": [],
+      "metadata": {
+        "description": "A list of ip configuration to be set in the nic card"
+      }
+    },
+    "serviceGroupNames": {
+      "type": "array",
+      "metadata": {
+        "description": "The Name of the service GroupId that will be linked. i.e redisCache for Redis"
+      }
+    }
+  },
+  "variables": {
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Network/privateEndpoints",
+      "apiVersion": "2021-05-01",
+      "name": "[parameters('privateEndpointName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "customNetworkInterfaceName": "[parameters('customNetworkInterfaceName')]",
+        "ipConfigurations": "[parameters('ipConfigurations')]",
+        "privateLinkServiceConnections": [
+          {
+            "name": "[parameters('privateEndpointName')]",
+            "properties": {
+              "privateLinkServiceId": "[parameters('privateLinkServiceId')]",
+              "groupIds": "[parameters('serviceGroupNames')]",
+              "privateLinkServiceConnectionState": {
+              }
+            }
+          }
+        ],
+        "manualPrivateLinkServiceConnections": [],
+        "subnet": {
+          "id": "[concat(parameters('virtualNetworkId'), '/subnets/',parameters('virtualNetworkSubnetName'))]"
+        },
+        "customDnsConfigs": []
+      }
+    }
+  ],
+  "outputs": {
+    "privateEndPointIpAddress": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Network/networkInterfaces/',parameters('customNetworkInterfaceName')),'2020-11-01').ipConfigurations[0].properties.privateIPAddress]"
+    }
+  }
+}

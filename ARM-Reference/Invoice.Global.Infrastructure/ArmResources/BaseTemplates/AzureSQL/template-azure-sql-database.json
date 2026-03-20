@@ -1,0 +1,95 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "sqlServerName": {
+      "type": "string",
+      "defaultValue": "invtstscusqlsvrdata",
+      "metadata": {
+        "description": "The name of the Azure Sql Server."
+      }
+    },
+    "dbName": {
+      "type": "string",
+      "defaultValue": "sapeldata",
+      "metadata": {
+        "description": "The name of the Data Warehouse."
+      }
+    },
+    "location": {
+      "defaultValue": "[resourceGroup().location]",
+      "type": "string",
+      "metadata": {
+        "description": "Resource location"
+      }
+    },
+    "dbTierName": {
+      "type": "string",
+      "defaultValue": "Standard"
+    },
+    "dbSkuName": {
+      "type": "string",
+      "defaultValue": "S3"
+    },
+    "dbProperties": {
+      "type": "Object",
+      "metadata": {
+        "description": "properties available here https://learn.microsoft.com/en-us/azure/templates/microsoft.sql/2021-11-01/servers/databases?pivots=deployment-language-arm-template",
+        "ExampleProperties": {
+          "createMode": "OnlineSecondary",
+          "secondaryType": "Geo",
+          "requestedBackupStorageRedundancy": "Geo",
+          "sourceDatabaseId": "/subscriptions/3fc9f1b6-c8f9-454a-a29d-426ffe58dbed/resourceGroups/RG-630-INV-TST-DATA/providers/Microsoft.Sql/servers/invtstsqlsvrdata/databases/sapeldata",
+          "zoneRedundant": false,
+          "readScale": "Disabled",
+          "highAvailabilityReplicaCount": 0,
+          "autoPauseDelay": 0
+        }
+      }
+    },
+    "isPrimaryReplica": {
+      "defaultValue": true,
+      "type": "bool"
+    },
+    "dbTransparentDataEncryption": {
+      "defaultValue": "Enabled",
+      "type": "string",
+      "allowedValues": [
+        "Enabled",
+        "Disabled"
+      ],
+      "metadata": {
+        "description": "Enable/Disable Transparent Data Encryption"
+      }
+    }
+  },
+  "variables": {
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Sql/servers/databases",
+      "apiVersion": "2021-11-01",
+      "name": "[concat(parameters('sqlServerName'),'/',parameters('dbName'))]",
+      "location": "[parameters('location')]",
+      "tags": {},
+      "sku": {
+        "name": "[parameters('dbSkuName')]",
+        "tier": "[parameters('dbTierName')]"
+      },
+      "properties": "[parameters('dbProperties')]"
+    },
+    {
+      "condition": "[parameters('isPrimaryReplica')]",
+      "name": "[concat(parameters('sqlServerName'), '/',parameters('dbName'),'/current')]",
+      "type": "Microsoft.Sql/servers/databases/transparentDataEncryption",
+      "apiVersion": "2021-11-01",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Sql/servers/databases', parameters('sqlServerName'), parameters('dbName'))]"
+      ],
+      "properties": {
+        "state": "[parameters('dbTransparentDataEncryption')]"
+      }
+    }
+  ]
+}

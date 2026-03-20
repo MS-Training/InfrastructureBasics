@@ -1,0 +1,106 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "nameSpaceName": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of the Azure Relay namespace"
+            }
+        },
+        "hybridConnectionName": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of the HybridConnection"
+            }
+        },
+        "internalServerName": {
+            "type": "string",
+            "defaultValue": "servername",
+            "metadata": {
+                "description": "The server name of the resource that azure will try to connect in your internal network"
+            }
+        },
+        "internalServerPort": {
+            "type": "string",
+            "defaultValue": "servername",
+            "metadata": {
+                "description": "The Port of server that the azure will try to connect on to your internal network resource"
+            }
+        },
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]",
+            "metadata": {
+                "description": "Location for all resources."
+            }
+        }
+    },
+    "variables": {
+        "hybridConnectionResourceId": "[concat(subscription().id,'/resourceGroups/',resourceGroup().name,'/providers/Microsoft.Relay/namespaces/', parameters('nameSpaceName'),'/HybridConnections/', parameters('hybridConnectionName'))]",
+        "hybridConnectionServerName": "[parameters('internalServerName')]",
+        "hybridConnectionServerPort": "[parameters('internalServerPort')]"
+    },
+    "resources": [
+        {
+            "apiVersion": "2017-04-01",
+            "name": "[parameters('namespaceName')]",
+            "type": "Microsoft.Relay/Namespaces",
+            "location": "[parameters('location')]",
+            "sku": {
+                "name": "Standard"
+            },
+            "properties": {},
+            "resources": [
+                {
+                    "apiVersion": "2017-04-01",
+                    "name": "[parameters('hybridConnectionName')]",
+                    "type": "HybridConnections",
+                    "dependsOn": [
+                        "[concat('Microsoft.Relay/namespaces/', parameters('namespaceName'))]"
+                    ],
+                    "properties": {
+                        "requiresClientAuthorization": true,
+                        "userMetadata": "[concat('[{\"key\":\"endpoint\",\"value\":\"',variables('hybridConnectionServerName'), ':',variables('hybridConnectionServerPort'), '\"}]')]"
+                    }
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.Relay/namespaces/HybridConnections/authorizationRules",
+            "apiVersion": "2017-04-01",
+            "name": "[concat(parameters('nameSpaceName'), '/', parameters('hybridConnectionName'), '/defaultListener')]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Relay/namespaces/HybridConnections', parameters('nameSpaceName'), parameters('hybridConnectionName'))]",
+                "[resourceId('Microsoft.Relay/namespaces', parameters('nameSpaceName'))]"
+            ],
+            "properties": {
+                "rights": [
+                    "Listen"
+                ]
+            }
+        },
+        {
+            "type": "Microsoft.Relay/namespaces/HybridConnections/authorizationRules",
+            "apiVersion": "2017-04-01",
+            "name": "[concat(parameters('nameSpaceName'), '/', parameters('hybridConnectionName'), '/defaultSender')]",
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Relay/namespaces/HybridConnections', parameters('nameSpaceName'), parameters('hybridConnectionName'))]",
+                "[resourceId('Microsoft.Relay/namespaces', parameters('nameSpaceName'))]"
+            ],
+            "properties": {
+                "rights": [
+                    "Send"
+                ]
+            }
+        }
+    ],
+    "outputs": {
+        "hybridConnectionResourceId": {
+            "type": "string",
+            "value": "[variables('hybridConnectionResourceId')]"
+        }
+    }
+}

@@ -1,0 +1,62 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "alertDetails": {
+      "type": "array"
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]"
+    }
+  },
+  "variables": {
+  },
+  "resources": [
+    {
+      "condition": "[parameters('alertDetails')[copyIndex()].isCreate]",
+      "name": "[parameters('alertDetails')[copyIndex()].name]",
+      "type": "microsoft.insights/scheduledqueryrules",
+      "location": "[parameters('location')]",
+      "apiVersion": "2018-04-16",
+      "copy": {
+        "name": "AddNewAlertLoop",
+        "count": "[length(parameters('alertDetails'))]"
+      },
+      "dependsOn": [
+      ],
+      "properties": {
+        "displayName": "[parameters('alertDetails')[copyIndex()].name]",
+        "description": "[parameters('alertDetails')[copyIndex()].description]",
+        "enabled": "[parameters('alertDetails')[copyIndex()].enabled]",
+        "source": {
+          "query": "[parameters('alertDetails')[copyIndex()].criteriaDetails[0].query]",
+          "dataSourceId": "[parameters('alertDetails')[copyIndex()].resourceIdScope]",
+          "queryType": "[parameters('alertDetails')[copyIndex()].criteriaDetails[0].queryType]"
+        },
+        "schedule": {
+          "frequencyInMinutes": "[parameters('alertDetails')[copyIndex()].evaluationFrequency]",
+          "timeWindowInMinutes": "[parameters('alertDetails')[copyIndex()].windowSize]"
+        },
+        "action": {
+          "odata.type": "Microsoft.WindowsAzure.Management.Monitoring.Alerts.Models.Microsoft.AppInsights.Nexus.DataContracts.Resources.ScheduledQueryRules.AlertingAction",
+          "severity": "[parameters('alertDetails')[copyIndex()].severity]",
+          "aznsAction": {
+            "actionGroup": [
+              "[parameters('alertDetails')[copyIndex()].actionGroupId]"
+            ],
+            "emailSubject": "[parameters('alertDetails')[copyIndex()].name]",
+            "customWebhookPayload": "[parameters('alertDetails')[copyIndex()].customWebhookPayload]"
+          },
+          "throttlingInMin": "[parameters('alertDetails')[copyIndex()].muteActionsDuration]",
+          "trigger": {
+            "ThresholdOperator": "[parameters('alertDetails')[copyIndex()].criteriaDetails[0].operator]",
+            "Threshold": "[parameters('alertDetails')[copyIndex()].criteriaDetails[0].threshold]"
+          }
+        }
+      }
+    }
+  ],
+  "outputs": {
+  }
+}

@@ -1,0 +1,241 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "armTemplatesSasToken": {
+      "type": "string"
+    },
+    "armTemplateURI": {
+      "type": "string"
+    },
+    "dataFactoryName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the data factory. Must be globally unique."
+      }
+    },
+    "dataFactoryLocation": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location of the data factory. "
+      }
+    },
+    "workspaceId": {
+      "type": "string",
+      "defaultValue": "workspaceID",
+      "metadata": {
+        "description": "Full Resource ID for the Log Analytics workspace "
+      }
+    },
+    "numberOfVMsForIntegrationRuntimes": {
+      "type": "int",
+      "defaultValue": 0
+    },
+    "intancesPerIntegrationRunTime": {
+      "type": "int",
+      "defaultValue": 0
+    },
+    "IntegrationRuntimeBaseName": {
+      "type": "string",
+      "defaultValue": "CorpnetIntegrationRuntime"
+    },
+    "TransactionIRName": {
+      "type": "string",
+      "defaultValue": "TransactionIR"
+    },
+    "DomainIRName": {
+      "type": "string",
+      "defaultValue": "DomainIR"
+    },
+    "AzureIntegrationRuntimeCoreCount": {
+      "type": "int",
+      "defaultValue": 80
+    },
+    "KeyVaultResourceGroupName": {
+      "type": "string"
+    },
+    "KeyVaultName": {
+      "type": "string"
+    },
+    "BaseTemplatePath": {
+      "type": "string"
+    }
+  },
+  "variables": {
+    "integrationRuntimeId": "[concat('/subscriptions/',subscription().subscriptionId,'/resourceGroups/',resourceGroup().name,'/providers/Microsoft.DataFactory/factories/',parameters('dataFactoryName'),'/integrationruntimes/')]"
+  },
+  "resources": [
+    {
+      "name": "[parameters('dataFactoryName')]",
+      "apiVersion": "2018-06-01",
+      "type": "Microsoft.DataFactory/factories",
+      "location": "[parameters('dataFactoryLocation')]",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {},
+      "resources": [
+        {
+          "type": "providers/diagnosticSettings",
+          "name": "[concat('Microsoft.Insights/', concat(parameters('dataFactoryName'),'-Diagnostics'))]",
+          "dependsOn": [
+            "[parameters('dataFactoryName')]"
+          ],
+          "apiVersion": "2017-05-01-preview",
+          "properties": {
+            "name": "[concat(parameters('dataFactoryName'),'Diagnostics')]",
+            "workspaceId": "[parameters('workspaceId')]",
+            "logAnalyticsDestinationType": "Dedicated",
+            "logs": [
+              {
+                "category": "ActivityRuns",
+                "enabled": true,
+                "retentionPolicy": {
+                  "days": 0,
+                  "enabled": false
+                }
+              },
+              {
+                "category": "PipelineRuns",
+                "enabled": true,
+                "retentionPolicy": {
+                  "days": 0,
+                  "enabled": false
+                }
+              },
+              {
+                "category": "TriggerRuns",
+                "enabled": true,
+                "retentionPolicy": {
+                  "days": 0,
+                  "enabled": false
+                }
+              }
+            ],
+            "metrics": [
+              {
+                "category": "AllMetrics",
+                "enabled": true,
+                "retentionPolicy": {
+                  "enabled": false,
+                  "days": 0
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "[concat(parameters('dataFactoryName'), '/', parameters('TransactionIRName'))]",
+          "type": "Microsoft.DataFactory/factories/integrationRuntimes",
+          "apiVersion": "2018-06-01",
+          "properties": {
+            "type": "Managed",
+            "typeProperties": {
+              "computeProperties": {
+                "location": "AutoResolve",
+                "dataFlowProperties": {
+                  "computeType": "General",
+                  "coreCount": "[parameters('AzureIntegrationRuntimeCoreCount')]",
+                  "timeToLive": 15,
+                  "cleanup": false
+                }
+              }
+            }
+          },
+          "dependsOn": [
+            "[concat('Microsoft.DataFactory/factories/', parameters('dataFactoryName'))]"
+          ]
+        },
+        {
+          "name": "[concat(parameters('dataFactoryName'), '/', parameters('DomainIRName'))]",
+          "type": "Microsoft.DataFactory/factories/integrationRuntimes",
+          "apiVersion": "2018-06-01",
+          "properties": {
+            "type": "Managed",
+            "typeProperties": {
+              "computeProperties": {
+                "location": "AutoResolve",
+                "dataFlowProperties": {
+                  "computeType": "General",
+                  "coreCount": "[parameters('AzureIntegrationRuntimeCoreCount')]",
+                  "timeToLive": 15,
+                  "cleanup": false
+                }
+              }
+            }
+          },
+          "dependsOn": [
+            "[concat('Microsoft.DataFactory/factories/', parameters('dataFactoryName'))]"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Microsoft.DataFactory/factories/integrationruntimes",
+      "name": "[concat(parameters('dataFactoryName'), '/', parameters('IntegrationRuntimeBaseName'), copyindex(1))]",
+      "apiVersion": "2018-06-01",
+      "dependsOn": [
+        "[concat('Microsoft.DataFactory/factories/', parameters('dataFactoryName'))]"
+      ],
+      "copy": {
+        "name": "CreateIntegrationRuntimeLoop",
+        "count": "[if(equals(mod(parameters('numberOfVMsForIntegrationRuntimes'),parameters('intancesPerIntegrationRunTime')),0),div(parameters('numberOfVMsForIntegrationRuntimes'),parameters('intancesPerIntegrationRunTime')),add(div(parameters('numberOfVMsForIntegrationRuntimes'),parameters('intancesPerIntegrationRunTime')),1))]",
+        "mode": "serial"
+      },
+      "properties": {
+        "type": "SelfHosted",
+        "description": "Self-hosted Integration runtime created using ARM template"
+      }
+    },
+    {
+      "name": "[concat('AddRuntimeKey', copyindex(1),'-Of-',parameters('dataFactoryName'),'-ToKeyvault')]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('KeyVaultResourceGroupName')]",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+        "[concat('Microsoft.DataFactory/factories/', parameters('dataFactoryName'))]",
+        "[concat('Microsoft.DataFactory/factories/',parameters('dataFactoryName'), '/integrationruntimes/', parameters('IntegrationRuntimeBaseName'), copyindex(1))]"
+      ],
+      "copy": {
+        "name": "AddADFSecretsToKeyvault",
+        "count": "[if(equals(mod(parameters('numberOfVMsForIntegrationRuntimes'),parameters('intancesPerIntegrationRunTime')),0),div(parameters('numberOfVMsForIntegrationRuntimes'),parameters('intancesPerIntegrationRunTime')),add(div(parameters('numberOfVMsForIntegrationRuntimes'),parameters('intancesPerIntegrationRunTime')),1))]",
+        "mode": "serial"
+      },
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat(parameters('armTemplateURI'), parameters('BaseTemplatePath'), 'KeyVault/template-keyVault-secrets.json', parameters('armTemplatesSasToken'))]"
+        },
+        "parameters": {
+          "keyVaultName": {
+            "value": "[parameters('KeyVaultName')]"
+          },
+          "secretsObject": {
+            "value": {
+              "secrets": [
+                {
+                  "secretName": "[concat('kv-',parameters('dataFactoryName'),'-',parameters('IntegrationRuntimeBaseName'), copyindex(1),'-AuthKey')]",
+                  "secretValue": "[listAuthKeys(concat(variables('integrationRuntimeId'),parameters('IntegrationRuntimeBaseName'), copyindex(1)), '2017-09-01-preview').authKey1]"
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "servicePrincipalId": {
+      "type": "string",
+      "value": "[reference(ResourceId('Microsoft.DataFactory/factories', parameters('dataFactoryName')),'2018-06-01','Full').identity.principalId]"
+    },
+    "IntregrationRuntimeSecretNames": {
+      "type": "array",
+      "copy": {
+        "count": "[if(equals(mod(parameters('numberOfVMsForIntegrationRuntimes'),parameters('intancesPerIntegrationRunTime')),0),div(parameters('numberOfVMsForIntegrationRuntimes'),parameters('intancesPerIntegrationRunTime')),add(div(parameters('numberOfVMsForIntegrationRuntimes'),parameters('intancesPerIntegrationRunTime')),1))]",
+        "input": "[concat('kv-',parameters('dataFactoryName'),'-',parameters('IntegrationRuntimeBaseName'), copyindex(1),'-AuthKey')]"
+      }
+    }
+  }
+}

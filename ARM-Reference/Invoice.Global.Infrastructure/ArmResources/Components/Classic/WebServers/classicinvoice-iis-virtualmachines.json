@@ -1,0 +1,427 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "artifactsSaBaseUri": {
+      "type": "string"
+    },
+    "artifactsSaSasToken": {
+      "type": "securestring"
+    },
+    "settings": {
+      "type": "secureObject",
+      "metadata": {
+        "description": ""
+      }
+    },
+    "resourceNames": {
+      "type": "Object",
+      "metadata": {
+        "description": "This is coming from the parameter File under Parameters"
+      }
+    },
+    "appKeyVaultId": {
+      "type": "string",
+      "metadata": {
+        "description": "This is the resourceId of the Keyvault where the application secrets are stored"
+      }
+    }
+  },
+  "variables": {
+    "deploymentDriver": false,
+    "vmBaseName": "[toupper(concat(parameters('resourceNames').baseName, parameters('settings').WebServers.serverTag, parameters('resourceNames').environment))]",
+    "DeploymentGroupAgentArgs": "[concat('-DeploymentGroupName ',parameters('settings').common.DeploymentGroupName,' -DeploymentGroupTag ',parameters('settings').WebServers.serverTag)]",
+    "numberOfInstances": "[parameters('settings').WebServers.numberOfInstances]",
+    "loadBalancerName": "[toupper(concat(variables('vmBaseName'), 'lbl'))]",
+    "certificateUriList": "[parameters('settings').WebServers.certificateUriList]",
+    "listOfScripts": [
+    ]
+  },
+  "resources": [
+    {
+      "condition": "[variables('deploymentDriver')]",
+      "name": "createIISServer",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').iisResourceGroupName]",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'template-vm-domainJoined', '/versions/v1')]"
+        },
+        "parameters": {
+          "CSEOAutomationDSCRegistrationKey": {
+            "reference": {
+              "keyVault": {
+                "id": "[parameters('appKeyVaultId')]"
+              },
+              "secretName": "[parameters('settings').secretManager.secretReferences.CSEOAutomationDSCRegistrationKey]"
+            }
+          },
+          "CSEOAutomationDSCServerUrlKeyVault": {
+            "reference": {
+              "keyVault": {
+                "id": "[parameters('appKeyVaultId')]"
+              },
+              "secretName": "[parameters('settings').secretManager.secretReferences.CSEOAutomationDSCServerUrl]"
+            }
+          },
+          "CSEOSasToken": {
+            "reference": {
+              "keyVault": {
+                "id": "[parameters('appKeyVaultId')]"
+              },
+              "secretName": "[parameters('settings').secretManager.secretReferences.CSEOSasToken]"
+            }
+          },
+          "armTemplatesSasToken": {
+            "value": "[parameters('artifactsSaSasToken')]"
+          },
+          "armTemplateURI": {
+            "value": "[parameters('artifactsSaBaseUri')]"
+          },
+          "templatespecsBaseResourceId": {
+            "value": "[parameters('resourceNames').templatespecsBaseResourceId]"
+          },
+          "vmName": {
+            "value": "[variables('vmBaseName')]"
+          },
+          "userAssignedIdentityResourceId": {
+            "value": "[parameters('resourceNames').manageIdentityResourceId]"
+          },
+          "AvailabilitySetName": {
+            "value": "[variables('vmBaseName')]"
+          },
+          "numberOfInstances": {
+            "value": "[parameters('settings').WebServers.numberOfInstances]"
+          },
+          "localAdminPassword": {
+            "reference": {
+              "keyVault": {
+                "id": "[parameters('appKeyVaultId')]"
+              },
+              "secretName": "[parameters('settings').secretManager.secretReferences.localAdminPassword]"
+            }
+          },
+          "Domain": {
+            "value": "[parameters('settings').WebServers.domain]"
+          },
+          "domainJoinUserName": {
+            "value": "[parameters('settings').common.serviceAccount]"
+          },
+          "domainJoinPassword": {
+            "reference": {
+              "keyVault": {
+                "id": "[parameters('appKeyVaultId')]"
+              },
+              "secretName": "[parameters('settings').secretManager.secretReferences.serviceAccountPassword]"
+            }
+          },
+          "localAdmins": {
+            "value": "[parameters('settings').common.localAdminsRedmond]"
+          },
+          "vmSize": {
+            "value": "[parameters('settings').WebServers.vmSize]"
+          },
+          "imagePublisher": {
+            "value": "[parameters('settings').common.commonVMConfig.OSImages.Windows.imagePublisher]"
+          },
+          "imageOffer": {
+            "value": "[parameters('settings').common.commonVMConfig.OSImages.Windows.imageOffer]"
+          },
+          "sku": {
+            "value": "[parameters('settings').common.commonVMConfig.OSImages.Windows.sku.latest]"
+          },
+          "StorageAccountType": {
+            "value": "[parameters('settings').WebServers.StorageAccountType]"
+          },
+          "osDiskSizeGB": {
+            "value": "[parameters('settings').WebServers.osDiskSizeGB]"
+          },
+          "dataDiskCount": {
+            "value": "[parameters('settings').WebServers.dataDiskCount]"
+          },
+          "dataDiskSizeGB": {
+            "value": "[parameters('settings').WebServers.dataDiskSizeGB]"
+          },
+          "driveConfig": {
+            "value": "[parameters('settings').WebServers.driveConfig]"
+          },
+          "virtualNetwork": {
+            "value": "[parameters('settings').WebServers.virtualNetwork]"
+          },
+          "vnetResourceGroup": {
+            "value": "[parameters('settings').WebServers.vnetResourceGroupName]"
+          },
+          "bootDiagnosysStorageAccountName": {
+            "value": "[parameters('resourceNames').diagnosysStorageAccountName]"
+          },
+          "bootDiagnosticsResourceGroupName": {
+            "value": "[parameters('resourceNames').commonResourceGroupName]"
+          },
+          "workspaceName": {
+            "value": "[parameters('resourceNames').workspaceName]"
+          },
+          "workspaceResourceGroupName": {
+            "value": "[parameters('resourceNames').commonResourceGroupName]"
+          },
+          "keyVaultName": {
+            "value": "[parameters('resourceNames').vmEncryptionKeyVaultName]"
+          },
+          "keyVaultResourceGroupName": {
+            "value": "[parameters('resourceNames').commonResourceGroupName]"
+          },
+          "isFirstDeployment": {
+            "value": "[parameters('settings').WebServers.isFirstDeployment]"
+          },
+          "vmRegion": {
+            "value": "[parameters('settings').common.region]"
+          },
+          "AcceleratedNetworking": {
+            "value": "[parameters('settings').WebServers.acceleratedNetworking]"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[variables('deploymentDriver')]",
+      "name": "[concat(variables('vmBaseName'),if(equals(variables('numberOfInstances'),1),'1', copyindex(1)),'-ConfigureIISDirectories')]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').iisResourceGroupName]",
+      "apiVersion": "2020-06-01",
+      "copy": {
+        "name": "ConfigureIISDirectoriesLoop",
+        "count": "[variables('numberOfInstances')]"
+      },
+      "dependsOn": [
+        "createIISServer"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'VMExtensions-template-vm-extension-ps-script', '/versions/v1')]"
+        },
+        "parameters": {
+          "vmName": {
+            "value": "[concat(variables('vmBaseName'),if(equals(variables('numberOfInstances'),1),'1', copyindex(1)))]"
+          },
+          "location": {
+            "value": "[parameters('settings').common.region]"
+          },
+          "powershellFileName": {
+            "value": "CreateSharedFolders.ps1"
+          },
+          "powershellParameters": {
+            "value": "[concat('-Paths ',parameters('settings').WebServers.directories, ' -Accounts ',parameters('settings').WebServers.sharesNTFSAccounts )]"
+          },
+          "powershellFileBlobUrl": {
+            "value": "[concat(parameters('artifactsSaBaseUri'), parameters('resourceNames').scriptsTemplatePath, 'CreateSharedFolders.ps1', parameters('artifactsSaSasToken'))]"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[variables('deploymentDriver')]",
+      "name": "[concat(variables('vmBaseName'),'-BuildWebServers')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2020-06-01",
+      "resourceGroup": "[parameters('resourceNames').iisResourceGroupName]",
+      "dependsOn": [
+        "ConfigureIISDirectoriesLoop"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'template-post-vmcreation-iis-configuration', '/versions/v1')]"
+        },
+        "parameters": {
+          "armTemplatesSasToken": {
+            "value": "[parameters('artifactsSaSasToken')]"
+          },
+          "armTemplateURI": {
+            "value": "[parameters('artifactsSaBaseUri')]"
+          },
+          "templatespecsBaseResourceId": {
+            "value": "[parameters('resourceNames').templatespecsBaseResourceId]"
+          },
+          "vmName": {
+            "value": "[variables('vmBaseName')]"
+          },
+          "vmRegion": {
+            "value": "[parameters('settings').common.region]"
+          },
+          "isHALoadBalancer": {
+            "value": true
+          },
+          "loadBalancerName": {
+            "value": "[variables('loadBalancerName')]"
+          },
+          "virtualNetworkName": {
+            "value": "[parameters('settings').WebServers.virtualNetwork]"
+          },
+          "vnetResourceGroupName": {
+            "value": "[parameters('settings').WebServers.vnetResourceGroupName]"
+          },
+          "numberOfInstances": {
+            "value": "[variables('numberOfInstances')]"
+          },
+          "backEndIpAddresses": {
+            "value": "[if(variables('deploymentDriver'),reference('createIISServer').outputs.vmIpAddresses.value,'')]"
+          },
+          "AcceleratedNetworking": {
+            "value": "[parameters('settings').WebServers.acceleratedNetworking]"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[variables('deploymentDriver')]",
+      "name": "[concat('AddKVPermissionFor-', variables('vmBaseName'), copyindex(1))]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonResourceGroupName]",
+      "apiVersion": "2022-09-01",
+      "copy": {
+        "name": "AddPermissionsForVMToKVLoop",
+        "mode": "serial",
+        "count": "[variables('numberOfInstances')]"
+      },
+      "dependsOn": [
+        "[concat(variables('vmBaseName'),'-BuildWebServers')]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'Security-template-authorization-roleAssigment', '/versions/v1')]"
+        },
+        "parameters": {
+          "resourceIdToAddAccessTo": {
+            "value": "[concat('/subscriptions/',subscription().subscriptionId,'/resourceGroups/',parameters('resourceNames').commonResourceGroupName,'/providers/Microsoft.KeyVault/vaults/',parameters('resourceNames').appKeyVaultName)]"
+          },
+          "ObjectIdToGrantAccess": {
+            "value": "[if(variables('deploymentDriver'),reference('createIISServer').outputs.vmIdentityObjectIds.value[copyIndex()],'')]"
+          },
+          "roleDefinitionObjectId": {
+            "value": "[parameters('settings').secretManager.keyvaultSecretUserRoleDefinitionObjectId]"
+          }
+        }
+      }
+    },
+    {
+      "name": "[concat(variables('vmBaseName'),if(equals(variables('numberOfInstances'),1),'1', copyindex(1)),'-InstallKeyVaultExtension')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2020-06-01",
+      "copy": {
+        "name": "InstallKeyVaultExtensionLoop",
+        "count": "[variables('numberOfInstances')]"
+      },
+      "dependsOn": [
+        "AddPermissionsForVMToKVLoop"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'VMExtensions-template-vm-extension-keyVault', '/versions/v1')]"
+        },
+        "parameters": {
+          "vmName": {
+            "value": "[concat(variables('vmBaseName'),if(equals(variables('numberOfInstances'),1),'1', copyindex(1)))]"
+          },
+          "vmRegion": {
+            "value": "[parameters('settings').common.region]"
+          },
+          "certificateUriList": {
+            "value": "[variables('certificateUriList')]"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[variables('deploymentDriver')]",
+      "name": "[concat(variables('vmBaseName'),if(equals(variables('numberOfInstances'),1),'1', copyindex(1)),'-ExecuteMultipleScripts')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2020-06-01",
+      "copy": {
+        "name": "ExecuteMultipleScriptsLoop",
+        "count": "[variables('numberOfInstances')]"
+      },
+      "dependsOn": [
+        "InstallKeyVaultExtensionLoop"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'factory-powershell-executer', '/versions/v1')]"
+        },
+        "parameters": { 
+          "templatespecsBaseResourceId": {
+            "value": "[parameters('resourceNames').templatespecsBaseResourceId]"
+          },
+          "vmName": {
+            "value": "[concat(variables('vmBaseName'),if(equals(variables('numberOfInstances'),1),'1', copyindex(1)))]"
+          },
+          "vmRegion": {
+            "value": "[parameters('settings').common.region]"
+          },
+          "listOfScripts": {
+            "value": "[variables('listOfScripts')]"
+          },
+          "resourceNames": {
+            "value": "[parameters('resourceNames')]"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[parameters('settings').WebServers.isDeploymentGroupAgent]",
+      "name": "[concat(variables('vmBaseName'),if(equals(variables('numberOfInstances'),1),'1', copyindex(1)),'-DeploymentGroupAgent')]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').iisResourceGroupName]",
+      "apiVersion": "2020-06-01",
+      "copy": {
+        "name": "DeploymentGroupAgentLoop",
+        "count": "[variables('numberOfInstances')]"
+      },
+      "dependsOn": [
+        "[concat(variables('vmBaseName'),if(equals(variables('numberOfInstances'),1),'1', copyindex(1)),'-ExecuteMultipleScripts')]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'VMExtensions-template-vm-extension-ps-script-with-secret', '/versions/v1')]"
+        },
+        "parameters": {
+          "vmName": {
+            "value": "[concat(variables('vmBaseName'),if(equals(variables('numberOfInstances'),1),'1', copyindex(1)))]"
+          },
+          "location": {
+            "value": "[parameters('settings').common.region]"
+          },
+          "powershellFileName": {
+            "value": "SetupADOConfig.ps1"
+          },
+          "powershellParameters": {
+            "value": "[variables('DeploymentGroupAgentArgs')]"
+          },
+          "secretParameterName": {
+            "value": "DeploymentGroupToken"
+          },
+          "secretParameterValue": {
+            "reference": {
+              "keyVault": {
+                "id": "[parameters('appKeyVaultId')]"
+              },
+              "secretName": "[parameters('settings').secretManager.secretReferences.DeploymentGroupToken]"
+            }
+          },
+          "powershellFileBlobUrl": {
+            "value": "[concat(parameters('artifactsSaBaseUri'), parameters('resourceNames').scriptsTemplatePath, 'SetupADOConfig.ps1', parameters('artifactsSaSasToken'))]"
+          }
+        }
+      }
+    }
+  ],
+  "outputs": {
+  }
+}

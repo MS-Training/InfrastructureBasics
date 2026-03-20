@@ -1,0 +1,131 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "artifactsSaBaseUri": {
+      "type": "string"
+    },
+    "artifactsSaSasToken": {
+      "type": "securestring"
+    },
+    "vmName": {
+      "type": "string",
+      "minLength": 3,
+      "metadata": {
+        "description": "Name for the Virtual Machine."
+      }
+    },
+    "settings": {
+      "type": "secureObject",
+      "metadata": {
+        "description": "This is the parameter file under parameters folder"
+      }
+    },
+    "SQLPostScriptList": {
+      "type": "array",
+      "metadata": {
+        "description": [
+          {
+            "powershellFileName": "PostSQLServerConfiguration.ps1",
+            "powershellParameters": "[concat('-StartupParameters ', '\"-T634,-T1118,-T1222,-T2467,-T2505,-T3605,-T7451,-T8004,-T8026,-T9347,-T9348\"', ' -EnableDtc $true')]",
+            "isExecute": true
+          },
+          {
+            "powershellFileName": "EnableSQLIntransitEncryption.ps1",
+            "powershellParameters": "[concat('-SQLServiceAccount ','redmond\\testaccount', '-Verbose')]",
+            "isExecute": false
+          }
+        ]
+      }
+    },
+    "resourceNames": {
+      "type": "Object",
+      "metadata": {
+        "description": "This is coming from the parameter File under Parameters"
+      }
+    },
+    "sQLTTDEMasterKeyPwd": {
+      "type": "SecureString",
+      "metadata": {
+        "description": "This is the parameter file under parameters folder"
+      }
+    },
+    "sQLTDECertBackupPwd": {
+      "type": "SecureString",
+      "metadata": {
+        "description": "This is the parameter file under parameters folder"
+      }
+    }
+  },
+  "variables": {
+  },
+  "resources": [
+    {
+      "name": "[concat(parameters('vmName'),'-Execute-InstallSQLServerPSModule')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'VMExtensions-template-vm-extension-ps-script', '/versions/v1')]"
+        },
+        "parameters": {
+          "vmName": {
+            "value": "[parameters('vmName')]"
+          },
+          "location": {
+            "value": "[parameters('settings').common.region]"
+          },
+          "powershellFileName": {
+            "value": "InstallPSModules.ps1"
+          },
+          "powershellParameters": {
+            "value": "-modulesList sqlserver -Verbose"
+          },
+          "powershellFileBlobUrl": {
+            "value": "[concat(parameters('artifactsSaBaseUri'),parameters('resourceNames').scriptsTemplatePath, 'InstallPSModules.ps1', parameters('artifactsSaSasToken'))]"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[parameters('SQLPostScriptList') [copyIndex()].isExecute]",
+      "name": "[concat(parameters('vmName'),'-Execute-',parameters('SQLPostScriptList') [copyIndex()].powershellFileName)]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2020-06-01",
+      "copy": {
+        "name": "SQLPostScriptsLoop",
+        "mode": "serial",
+        "count": "[length(parameters('SQLPostScriptList'))]"
+      },
+      "dependsOn": [
+        "[concat(parameters('vmName'),'-Execute-InstallSQLServerPSModule')]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'VMExtensions-template-vm-extension-ps-script', '/versions/v1')]"
+        },
+        "parameters": {
+          "vmName": {
+            "value": "[parameters('vmName')]"
+          },
+          "location": {
+            "value": "[parameters('settings').common.region]"
+          },
+          "powershellFileName": {
+            "value": "[parameters('SQLPostScriptList') [copyIndex()].powershellFileName]"
+          },
+          "powershellParameters": {
+            "value": "[if(equals(parameters('SQLPostScriptList') [copyIndex()].powershellFileName,'EnableSQLTDEEncryption.ps1'),concat(parameters('SQLPostScriptList') [copyIndex()].powershellParameters,' -MasterKeyPWD ', '\"',parameters('sQLTTDEMasterKeyPwd'), '\"', ' -CertPwd ', '\"',parameters('sQLTDECertBackupPwd'),'\"', ' -Verbose'),parameters('SQLPostScriptList') [copyIndex()].powershellParameters) ]"
+          },
+          "powershellFileBlobUrl": {
+            "value": "[concat(parameters('artifactsSaBaseUri'),parameters('resourceNames').scriptsTemplatePath, parameters('SQLPostScriptList') [copyIndex()].powershellFileName, parameters('artifactsSaSasToken'))]"
+          }
+        }
+      }
+    }
+  ]
+}

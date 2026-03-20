@@ -1,0 +1,33 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "subnetName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the nsg to add a rule to"
+      }
+    },
+    "ruleDetailsList": {
+      "type": "array",
+      "metadata": {
+        "description": "This is an array of objects that contains the properties of the rules"
+      }
+    }
+  },
+  "variables": {
+    "nsgName": "[concat(parameters('subnetName'),'nsg')]"
+  },
+  "resources": [
+    {
+      "name": "[format('{0}/{1}', variables('nsgName'), parameters('ruleDetailsList')[copyIndex()].name)]",
+      "type": "Microsoft.Network/networkSecurityGroups/securityRules",
+      "apiVersion": "2023-04-01",
+      "copy": {
+        "name": "createNsgRules",
+        "count": "[length(parameters('ruleDetailsList'))]"
+      },
+      "properties": "[parameters('ruleDetailsList')[copyIndex()].properties]"
+    }
+  ]
+}

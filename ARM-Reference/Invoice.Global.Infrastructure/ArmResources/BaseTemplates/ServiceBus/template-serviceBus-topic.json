@@ -1,0 +1,49 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "serviceBusNamespace": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the Service Bus namespace"
+      }
+    },
+    "topic": {
+      "type": "string",
+      "metadata": {
+        "description": "Topic name"
+      }
+    },
+    "topicProperties": {
+      "type": "object",
+      "metadata": {
+        "description": {
+          "comment": "See example object values below for topicProperties. The objectExample below is what should be passed into this Topic creation call.",
+          "objectExample": {
+            "maxMessageSizeInKilobytes": 256,
+            "defaultMessageTimeToLive": "P14D",
+            "maxSizeInMegabytes": 2048,
+            "requiresDuplicateDetection": false,
+            "duplicateDetectionHistoryTimeWindow": "PT10M",
+            "enableBatchedOperations": true,
+            "status": "Active",
+            "supportOrdering": false,
+            "autoDeleteOnIdle": "P10675199DT2H48M5.4775807S",
+            "enablePartitioning": true,
+            "enableExpress": false
+          }
+        }
+      }
+    }
+  },
+  "variables": {},
+  "resources": [
+    {
+      "comments": "Creates a topic with the provided properties object specified.",
+      "apiVersion": "2021-11-01",
+      "name": "[concat(parameters('serviceBusNamespace'), '/', parameters('topic'))]",
+      "type": "Microsoft.ServiceBus/Namespaces/Topics",
+      "properties": "[parameters('topicProperties')]"
+    }
+  ]
+}

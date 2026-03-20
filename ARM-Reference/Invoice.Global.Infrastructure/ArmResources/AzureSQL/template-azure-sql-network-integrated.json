@@ -1,0 +1,252 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "templatespecsBaseResourceId": {
+      "type": "string"
+    },
+    "azureSqlServerName": {
+      "type": "string"
+    },
+    "primarySqlServerName": {
+      "defaultValue": "",
+      "type": "string"
+    },
+    "primarySqlServerResourceGroupName": {
+      "defaultValue": "",
+      "type": "string"
+    },
+    "partnerFailoverServers": {
+      "type": "array",
+      "defaultValue": [],
+      "metadata": {
+        "description": [
+          { "id": "The resource id of the partner sql server" },
+          { "id": "The resource id of the partner sql server" }
+        ]
+      }
+    },
+    "location": {
+      "type": "string"
+    },
+    "keyvaultName": {
+      "type": "string"
+    },
+    "keyvaultResourceGroupName": {
+      "type": "string"
+    },
+    "virtualNetworkName": {
+      "type": "string"
+    },
+    "networkResourceGroupName": {
+      "type": "string"
+    },
+    "virtualNetworkSubnetName": {
+      "type": "string"
+    },
+    "activeDirectoryAdminName": {
+      "type": "string"
+    },
+    "activeDirectoryAdminObjectID": {
+      "type": "string"
+    },
+    "diagnosysStorageAccountName": {
+      "type": "string"
+    },
+    "userAssignedIdentityResourceId": {
+      "type": "string"
+    },
+    "setSQLAdminPassword": {
+      "type": "bool",
+      "defaultValue": true
+    },
+    "sqlFirewallRules": {
+      "type": "array",
+      "metadata": {
+        "description": "an array with all the ipRules"
+      }
+    },
+    "date": {
+      "type": "string",
+      "defaultValue": "[utcNow()]"
+    },
+    "isPrimaryRegion": {
+      "type": "bool",
+      "defaultValue": true
+    },
+    "guid": {
+      "type": "securestring",
+      "defaultValue": "[newGuid()]"
+    }
+  },
+  "variables": {
+    "keyVaultResourceId": "[concat('/subscriptions/',subscription().subscriptionId,'/resourceGroups/',parameters('keyvaultResourceGroupName'),'/providers/Microsoft.KeyVault/vaults/',parameters('keyVaultName'))]",
+    "sqlAdministratorPasswordSecretName": "[concat('kv-',parameters('azureSqlServerName'),'-sqlAdministratorPassword')]",
+    "base64String": "[base64(parameters('guid'))]"
+  },
+  "resources": [
+    {
+      "condition": "[parameters('setSQLAdminPassword')]",
+      "name": "[take(concat('AddSqlAdministratorPasswordToKeyVault-',parameters('date')),60)]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('keyvaultResourceGroupName')]",
+      "apiVersion": "2022-09-01",
+      "dependsOn": [
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('templatespecsBaseResourceId'), 'KeyVault-template-keyVault-secrets', '/versions/v1')]"
+        },
+        "parameters": {
+          "keyVaultName": {
+            "value": "[parameters('keyVaultName')]"
+          },
+          "secretsObject": {
+            "value": {
+              "secrets": [
+                {
+                  "secretName": "[variables('sqlAdministratorPasswordSecretName')]",
+                  "secretValue": "[concat(uniqueString(resourceGroup().id, deployment().name, variables('base64String'), subscription().id), take(variables('base64String'),9))]"
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "[take(concat('createAzureSqlSrv-',parameters('date')),60)]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "dependsOn": [
+        "[take(concat('AddSqlAdministratorPasswordToKeyVault-',parameters('date')),60)]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('templatespecsBaseResourceId'), 'AzureSQL-template-azure-sql-server', '/versions/v1')]"
+        },
+        "parameters": {
+          "sqlServerName": {
+            "value": "[parameters('azureSqlServerName')]"
+          },
+          "sqlAdministratorLogin": {
+            "value": "[concat(parameters('azureSqlServerName'),'admin')]"
+          },
+          "sqlAdministratorPassword": {
+            "reference": {
+              "keyVault": {
+                "id": "[if(parameters('setSQLAdminPassword'),reference(take(concat('AddSqlAdministratorPasswordToKeyVault-',parameters('date')),60)).outputs.keyVaultResourceId.value,variables('keyVaultResourceId'))]"
+              },
+              "secretName": "[variables('sqlAdministratorPasswordSecretName')]"
+            }
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "aadAdminLogin": {
+            "value": "[parameters('activeDirectoryAdminName')]"
+          },
+          "aadAdminObjectID": {
+            "value": "[parameters('activeDirectoryAdminObjectID')]"
+          },
+          "diagnosticsStorageAccountName": {
+            "value": "[parameters('diagnosysStorageAccountName')]"
+          },
+          "userAssignedIdentityResourceId": {
+            "value": "[parameters('userAssignedIdentityResourceId')]"
+          }
+        }
+      }
+    },
+    {
+      "name": "[take(concat('createFirewallRules-',parameters('date')),60)]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "dependsOn": [
+        "[take(concat('createAzureSqlSrv-',parameters('date')),60)]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('templatespecsBaseResourceId'), 'AzureSQL-template-azure-sql-server-firewall', '/versions/v1')]"
+        },
+        "parameters": {
+          "sqlServerName": {
+            "value": "[parameters('azureSqlServerName')]"
+          },
+          "sqlFirewallRules": {
+            "value": "[parameters('sqlFirewallRules')]"
+          }
+        }
+      }
+    },
+    {
+      "name": "[take(concat('createSQLPrivateEndPoint-',parameters('date')),60)]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+        "[take(concat('createAzureSqlSrv-',parameters('date')),60)]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('templatespecsBaseResourceId'), 'factory-private-endpoints', '/versions/v1')]"
+        },
+        "parameters": { 
+          "templatespecsBaseResourceId": {
+            "value": "[parameters('templatespecsBaseResourceId')]"
+          },
+          "createDNSRecords": {
+            "value": true
+          },
+          "addPrivateEndPointPrefix": {
+            "value": false
+          },
+          "privateEndpointsDetails": {
+            "value": [
+              {
+                "resourceName": "[parameters('azureSqlServerName')]",
+                "resourceGroupName": "[resourceGroup().name]",
+                "privateLinkServiceId": "[concat('/subscriptions/',subscription().subscriptionId,'/resourceGroups/',resourceGroup().name,'/providers/Microsoft.Sql/servers/',parameters('azureSqlServerName'))]",
+                "networkResourceGroupName": "[parameters('networkResourceGroupName')]",
+                "virtualNetworkSubnetName": "[parameters('virtualNetworkSubnetName')]",
+                "virtualNetworkId": "[concat('/subscriptions/',subscription().subscriptionId,'/resourceGroups/',parameters('networkResourceGroupName'),'/providers/Microsoft.Network/virtualNetworks/',parameters('virtualNetworkName'))]",
+                "serviceGroupNames": [ "sqlServer" ],
+                "location": "[parameters('location')]",
+                "privateDNSZoneName": "privatelink.database.windows.net"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "condition": "[not(parameters('isPrimaryRegion'))]",
+      "name": "[take(concat('CreateSQLFailoverGroup-',parameters('date')),60)]",
+      "resourceGroup": "[parameters('primarySqlServerResourceGroupName')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "dependsOn": [
+        "[take(concat('createAzureSqlSrv-',parameters('date')),60)]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('templatespecsBaseResourceId'), 'AzureSQL-template-azure-sql-server-failoverGroup', '/versions/v1')]"
+        },
+        "parameters": {
+          "primarySqlServerName": {
+            "value": "[parameters('primarySqlServerName')]"
+          },
+          "partnerServers": {
+            "value": "[parameters('partnerFailoverServers')]"
+          }
+        }
+      }
+    }
+  ],
+  "outputs": {
+  }
+}

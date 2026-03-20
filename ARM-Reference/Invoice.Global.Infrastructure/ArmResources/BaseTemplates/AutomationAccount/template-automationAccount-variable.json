@@ -1,0 +1,38 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "variableDetails": {
+            "type": "array",
+            "metadata": {
+                "description": "Automation account variable name"
+            }
+        },
+        "automationAccountName": {
+            "type": "string",
+            "metadata": {
+                "description": "Automation Account Name to add variable"
+            }
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "type": "Microsoft.Automation/automationAccounts/variables",
+            "apiVersion": "2015-10-31",
+            "dependsOn": [],
+            "name": "[concat(parameters('automationAccountName'), '/',parameters('variableDetails')[copyIndex()].name)]",
+            "copy": {
+                "name" : "AddAutomationAccountVariables",
+                "mode" : "Serial",
+                "count" :  "[length(parameters('variableDetails'))]"
+            },
+            "properties": {
+                "value": "[parameters('variableDetails')[copyIndex()].value]",
+                "description": "[parameters('variableDetails')[copyIndex()].description]",
+                "isEncrypted": "[parameters('variableDetails')[copyIndex()].isEncrypted]"
+            }
+        }
+    ],
+    "outputs": {}
+}

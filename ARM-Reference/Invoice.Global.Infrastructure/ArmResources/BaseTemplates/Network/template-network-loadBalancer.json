@@ -1,0 +1,78 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "loadBalancerName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of loadBancer"
+      }
+    },
+    "loadBalancerRegion": {
+      "minLength": 3,
+      "type": "String",
+      "defaultValue": "[resourceGroup().location]",
+      "allowedValues": [
+        "[resourceGroup().location]",
+        "eastus",
+        "eastus2",
+        "centralus",
+        "northcentralus",
+        "southcentralus",
+        "southeastasia",
+        "westcentralus",
+        "westeurope",
+        "northeurope",
+        "westus",
+        "westus2"
+      ],
+      "metadata": {
+        "description": ""
+      }
+    },
+    "skuDetails": {
+      "type": "object",
+      "defaultValue": {
+        "name": "Standard",
+        "tier": "Regional"
+      }
+    },
+    "frontendIPConfigurations": {
+      "type": "array"
+    },
+    "backendAddressPools": {
+      "type": "array"
+    },
+    "loadBalancingRules": {
+      "type": "array"
+    },
+    "probes": {
+      "type": "array"
+    },
+    "inboundNatPools": {
+      "type": "array"
+    }
+  },
+  "variables": {
+  },
+  "resources": [
+    {
+      "apiVersion": "2020-11-01",
+      "type": "Microsoft.Network/loadBalancers",
+      "name": "[parameters('loadBalancerName')]",
+      "location": "[parameters('loadBalancerRegion')]",
+      "sku": "[parameters('skuDetails')]",
+      "dependsOn": [
+      ],
+      "properties": {
+        "frontendIPConfigurations": "[parameters('frontendIPConfigurations')]",
+        "backendAddressPools": "[parameters('backendAddressPools')]",
+        "loadBalancingRules": "[parameters('loadBalancingRules')]",
+        "probes": "[parameters('probes')]",
+        "inboundNatPools": "[parameters('inboundNatPools')]"
+      }
+    }
+  ],
+  "outputs": {
+  }
+}

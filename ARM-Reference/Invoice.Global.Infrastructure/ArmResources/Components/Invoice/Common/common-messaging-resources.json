@@ -1,0 +1,417 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "settings": {
+      "type": "secureObject",
+      "metadata": {
+        "description": "This is coming from the parameter File under Parameters"
+      }
+    },
+    "resourceNames": {
+      "type": "Object",
+      "metadata": {
+        "description": "This is coming from the parameter File under Parameters"
+      }
+    },
+    "date": {
+      "type": "string",
+      "defaultValue": "[utcNow()]"
+    }
+  },
+  "variables": {
+    "serviceBusBaseName": "[concat(parameters('resourceNames').serviceBusBaseName, parameters('settings').common.tag)]"
+  },
+  "resources": [
+    {
+      "name": "[concat('createServiceBus', parameters('date'))]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonResourceGroupName]",
+      "apiVersion": "2022-09-01",
+      "dependsOn": [],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'ServiceBus-factory-serviceBus', '/versions/v1')]"
+        },
+        "parameters": {
+          "templatespecsBaseResourceId": {
+            "value": "[parameters('resourceNames').templatespecsBaseResourceId]"
+          },
+          "serviceBusDetails": {
+            "value": [
+              {
+                "resourceName": "[variables('serviceBusBaseName')]",
+                "resourceGroupName": "[parameters('resourceNames').commonResourceGroupName]",
+                "serviceBusSkuName": "[parameters('settings').common.commonServiceBus.serviceBusSkuName]",
+                "publicNetworkAccess": "[parameters('settings').common.commonServiceBus.publicNetworkAccess]",
+                "disableLocalAuth": true,
+                "topics": [
+                  {
+                    "topicName": "invoice.events",
+                    "properties": {
+                      "defaultMessageTimeToLive": "P30D",
+                      "maxSizeInMegabytes": 2048,
+                      "requiresDuplicateDetection": false,
+                      "duplicateDetectionHistoryTimeWindow": "PT10M",
+                      "enableBatchedOperations": true,
+                      "status": "Active",
+                      "supportOrdering": false,
+                      "autoDeleteOnIdle": "P10675199DT2H48M5.4775807S",
+                      "enablePartitioning": false,
+                      "enableExpress": false
+                    },
+                    "subscriptions": [
+                      {
+                        "name": "sync.completed.notification",
+                        "filterRules": [
+                          {
+                            "name": "MessageTypeFilter",
+                            "comments": "The properties object below contains example values.",
+                            "properties": {
+                              "action": {},
+                              "filterType": "SqlFilter",
+                              "sqlFilter": {
+                                "sqlExpression": "user.MessageType LIKE('%sync.statuses%')",
+                                "compatibilityLevel": 20
+                              }
+                            }
+                          }
+                        ],
+                        "properties": {
+                          "isClientAffine": false,
+                          "lockDuration": "PT5M",
+                          "requiresSession": false,
+                          "defaultMessageTimeToLive": "P30D",
+                          "deadLetteringOnMessageExpiration": false,
+                          "deadLetteringOnFilterEvaluationExceptions": true,
+                          "maxDeliveryCount": 10,
+                          "status": "Active",
+                          "enableBatchedOperations": true,
+                          "autoDeleteOnIdle": "P10675199DT2H48M5.4775807S"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "topicName": "tpsapel.invoice",
+                    "properties": {
+                      "defaultMessageTimeToLive": "P30D",
+                      "maxSizeInMegabytes": 2048,
+                      "requiresDuplicateDetection": false,
+                      "duplicateDetectionHistoryTimeWindow": "PT10M",
+                      "enableBatchedOperations": true,
+                      "status": "Active",
+                      "supportOrdering": false,
+                      "autoDeleteOnIdle": "P10675199DT2H48M5.4775807S",
+                      "enablePartitioning": false,
+                      "enableExpress": false
+                    },
+                    "subscriptions": [
+                      {
+                        "name": "tpsubsapel.audit",
+                        "filterRules": [
+                          {
+                            "name": "EventType",
+                            "comments": "The properties object below contains example values.",
+                            "properties": {
+                              "action": {},
+                              "filterType": "SqlFilter",
+                              "sqlFilter": {
+                                "sqlExpression": "user.EventType LIKE('%.Invoice.%.v1.Audit')",
+                                "compatibilityLevel": 20
+                              }
+                            }
+                          }
+                        ],
+                        "properties": {
+                          "isClientAffine": false,
+                          "lockDuration": "PT5M",
+                          "requiresSession": false,
+                          "defaultMessageTimeToLive": "P30D",
+                          "deadLetteringOnMessageExpiration": false,
+                          "deadLetteringOnFilterEvaluationExceptions": true,
+                          "maxDeliveryCount": 100,
+                          "status": "Active",
+                          "enableBatchedOperations": true,
+                          "autoDeleteOnIdle": "P10675199DT2H48M5.4775807S"
+                        }
+                      },
+                      {
+                        "name": "tpsubsapel.intake",
+                        "filterRules": [
+                          {
+                            "name": "EventType",
+                            "comments": "The properties object below contains example values.",
+                            "properties": {
+                              "action": {},
+                              "filterType": "SqlFilter",
+                              "sqlFilter": {
+                                "sqlExpression": "user.EventType LIKE('%.Invoice.%.v1.Intake')",
+                                "compatibilityLevel": 20
+                              }
+                            }
+                          }
+                        ],
+                        "properties": {
+                          "isClientAffine": false,
+                          "lockDuration": "PT5M",
+                          "requiresSession": false,
+                          "defaultMessageTimeToLive": "P30D",
+                          "deadLetteringOnMessageExpiration": false,
+                          "deadLetteringOnFilterEvaluationExceptions": true,
+                          "maxDeliveryCount": 100,
+                          "status": "Active",
+                          "enableBatchedOperations": true,
+                          "autoDeleteOnIdle": "P10675199DT2H48M5.4775807S"
+                        }
+                      },
+                      {
+                        "name": "tpsubsapel.received",
+                        "filterRules": [
+                          {
+                            "name": "EventType",
+                            "comments": "The properties object below contains example values.",
+                            "properties": {
+                              "action": {},
+                              "filterType": "SqlFilter",
+                              "sqlFilter": {
+                                "sqlExpression": "user.EventType LIKE('%.Invoice.%.v1.Received')",
+                                "compatibilityLevel": 20
+                              }
+                            }
+                          }
+                        ],
+                        "properties": {
+                          "isClientAffine": false,
+                          "lockDuration": "PT5M",
+                          "requiresSession": false,
+                          "defaultMessageTimeToLive": "P30D",
+                          "deadLetteringOnMessageExpiration": false,
+                          "deadLetteringOnFilterEvaluationExceptions": true,
+                          "maxDeliveryCount": 100,
+                          "status": "Active",
+                          "enableBatchedOperations": true,
+                          "autoDeleteOnIdle": "P10675199DT2H48M5.4775807S"
+                        }
+                      },
+                      {
+                        "name": "tpsubsapel.triaged",
+                        "filterRules": [
+                          {
+                            "name": "EventType",
+                            "comments": "The properties object below contains example values.",
+                            "properties": {
+                              "action": {},
+                              "filterType": "SqlFilter",
+                              "sqlFilter": {
+                                "sqlExpression": "user.EventType LIKE('%.Invoice.%.v1.Triaged')",
+                                "compatibilityLevel": 20
+                              }
+                            }
+                          }
+                        ],
+                        "properties": {
+                          "isClientAffine": false,
+                          "lockDuration": "PT5M",
+                          "requiresSession": false,
+                          "defaultMessageTimeToLive": "P30D",
+                          "deadLetteringOnMessageExpiration": false,
+                          "deadLetteringOnFilterEvaluationExceptions": true,
+                          "maxDeliveryCount": 100,
+                          "status": "Active",
+                          "enableBatchedOperations": true,
+                          "autoDeleteOnIdle": "P10675199DT2H48M5.4775807S"
+                        }
+                      },
+                      {
+                        "name": "tpsubsapel.delete",
+                        "filterRules": [
+                          {
+                            "name": "EventType",
+                            "comments": "The properties object below contains example values.",
+                            "properties": {
+                              "action": {},
+                              "filterType": "SqlFilter",
+                              "sqlFilter": {
+                                "sqlExpression": "user.EventType LIKE('%.Invoice.%.v1.Delete')",
+                                "compatibilityLevel": 20
+                              }
+                            }
+                          }
+                        ],
+                        "properties": {
+                          "isClientAffine": false,
+                          "lockDuration": "PT5M",
+                          "requiresSession": false,
+                          "defaultMessageTimeToLive": "P30D",
+                          "deadLetteringOnMessageExpiration": false,
+                          "deadLetteringOnFilterEvaluationExceptions": true,
+                          "maxDeliveryCount": 10,
+                          "status": "Active",
+                          "enableBatchedOperations": true,
+                          "autoDeleteOnIdle": "P10675199DT2H48M5.4775807S"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "topicName": "tpsapel.purchaseorder",
+                    "properties": {
+                      "defaultMessageTimeToLive": "P30D",
+                      "maxSizeInMegabytes": 2048,
+                      "requiresDuplicateDetection": false,
+                      "duplicateDetectionHistoryTimeWindow": "PT10M",
+                      "enableBatchedOperations": true,
+                      "status": "Active",
+                      "supportOrdering": false,
+                      "autoDeleteOnIdle": "P10675199DT2H48M5.4775807S",
+                      "enablePartitioning": false,
+                      "enableExpress": false
+                    },
+                    "subscriptions": [
+                      {
+                        "name": "tpsubsapel.default",
+                        "filterRules": [],
+                        "properties": {
+                          "isClientAffine": false,
+                          "lockDuration": "PT5M",
+                          "requiresSession": false,
+                          "defaultMessageTimeToLive": "P30D",
+                          "deadLetteringOnMessageExpiration": false,
+                          "deadLetteringOnFilterEvaluationExceptions": true,
+                          "maxDeliveryCount": 100,
+                          "status": "Active",
+                          "enableBatchedOperations": true,
+                          "autoDeleteOnIdle": "P10675199DT2H48M5.4775807S"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "topicName": "tpsapel.receiver",
+                    "properties": {
+                      "defaultMessageTimeToLive": "P30D",
+                      "maxSizeInMegabytes": 2048,
+                      "requiresDuplicateDetection": false,
+                      "duplicateDetectionHistoryTimeWindow": "PT10M",
+                      "enableBatchedOperations": true,
+                      "status": "Active",
+                      "supportOrdering": false,
+                      "autoDeleteOnIdle": "P10675199DT2H48M5.4775807S",
+                      "enablePartitioning": false,
+                      "enableExpress": false
+                    },
+                    "subscriptions": [
+                      {
+                        "name": "tpsubsapel.invoice",
+                        "filterRules": [
+                          {
+                            "name": "EventType",
+                            "comments": "The properties object below contains example values.",
+                            "properties": {
+                              "action": {},
+                              "filterType": "SqlFilter",
+                              "sqlFilter": {
+                                "sqlExpression": "user.EventType LIKE('%.Invoice.%.v1.%')",
+                                "compatibilityLevel": 20
+                              }
+                            }
+                          }
+                        ],
+                        "properties": {
+                          "isClientAffine": false,
+                          "lockDuration": "PT5M",
+                          "requiresSession": false,
+                          "defaultMessageTimeToLive": "P30D",
+                          "deadLetteringOnMessageExpiration": false,
+                          "deadLetteringOnFilterEvaluationExceptions": true,
+                          "maxDeliveryCount": 100,
+                          "status": "Active",
+                          "enableBatchedOperations": true,
+                          "autoDeleteOnIdle": "P10675199DT2H48M5.4775807S"
+                        }
+                      },
+                      {
+                        "name": "tpsubsapel.purchaseorder",
+                        "filterRules": [
+                          {
+                            "name": "EventType",
+                            "comments": "The properties object below contains example values.",
+                            "properties": {
+                              "action": {},
+                              "filterType": "SqlFilter",
+                              "sqlFilter": {
+                                "sqlExpression": "user.EventType LIKE('%.PurchaseOrder.%.v1.%')",
+                                "compatibilityLevel": 20
+                              }
+                            }
+                          }
+                        ],
+                        "properties": {
+                          "isClientAffine": false,
+                          "lockDuration": "PT5M",
+                          "requiresSession": false,
+                          "defaultMessageTimeToLive": "P30D",
+                          "deadLetteringOnMessageExpiration": false,
+                          "deadLetteringOnFilterEvaluationExceptions": true,
+                          "maxDeliveryCount": 100,
+                          "status": "Active",
+                          "enableBatchedOperations": true,
+                          "autoDeleteOnIdle": "P10675199DT2H48M5.4775807S"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          "workspaceID": {
+            "value": "[parameters('resourceNames').commonWorkSpaceResourceId]"
+          }
+        }
+      }
+    },
+    {
+      "name": "[concat('createCommonPvtEndPts-', parameters('date'))]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonResourceGroupName]",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+        "[concat('createServiceBus', parameters('date'))]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'factory-private-endpoints', '/versions/v1')]"
+        },
+        "parameters": {
+          "templatespecsBaseResourceId": {
+            "value": "[parameters('resourceNames').templatespecsBaseResourceId]"
+          },
+          "createDNSRecords": {
+            "value": true
+          },
+          "privateEndpointsDetails": {
+            "value": [
+              {
+                "resourceName": "[variables('serviceBusBaseName')]",
+                "resourceGroupName": "[parameters('resourceNames').commonResourceGroupName]",
+                "privateLinkServiceId": "[concat('/subscriptions/',subscription().subscriptionId,'/resourceGroups/',parameters('resourceNames').commonResourceGroupName,'/providers/Microsoft.ServiceBus/namespaces/',variables('serviceBusBaseName'))]",
+                "virtualNetworkId": "[parameters('resourceNames').commonVirtualNetworkResourceId]",
+                "virtualNetworkSubnetName": "[parameters('settings').commonNetwork.subnets[0].subnetName]",
+                "serviceGroupNames": [ "namespace" ],
+                "location": "[parameters('settings').common.region]",
+                "networkResourceGroupName": "[parameters('resourceNames').commonNetworkResourceGroupName]",
+                "privateDNSZoneName": "privatelink.servicebus.windows.net"
+
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "outputs": {}
+}

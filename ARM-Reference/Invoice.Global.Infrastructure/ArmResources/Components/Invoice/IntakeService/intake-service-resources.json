@@ -1,0 +1,792 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+     "dotnetFrameworkVersion": {
+      "type": "string",
+      "defaultValue": "v8.0",
+      "metadata": {
+        "description": "The .NET Framework version that you want to use for the function app."
+      }
+    },
+    "settings": {
+      "type": "secureObject",
+      "metadata": {
+        "description": "This is coming from the parameter File under Parameters"
+      }
+    },
+    "resourceNames": {
+      "type": "Object",
+      "metadata": {
+        "description": "This is coming from the parameter File under Parameters"
+      }
+    },
+    "storageConnectionString": {
+      "type": "securestring"
+    },
+    "appInsightsInstrumentationKey": {
+      "type": "securestring"
+    },
+    "date": {
+      "type": "string",
+      "defaultValue": "[utcNow()]"
+    }
+  },
+  "variables": {
+    "commonKeyvaultName": "[tolower(concat(parameters('resourceNames').keyVaultBaseName,parameters('settings').common.tag))]",
+    "commonKeyvaultSecrets_uri": "[concat('@Microsoft.KeyVault(SecretUri=https://', variables('commonKeyvaultName'), '.vault.azure.net/secrets/')]",
+    "managedIdentityName": "[tolower(concat(parameters('resourceNames').managedIdentityBaseName,parameters('settings').common.tag))]",
+    "functionAppName": "[concat(parameters('resourceNames').functionAppBaseName,parameters('settings').invoiceIntake.tag)]",
+    "AzureActiveDirectoryConfiguration_Instance": "https://login.microsoftonline.com",
+    "enablePoLineFieldForShippingCustomDuty": "[if(equals(toUpper(parameters('resourceNames').environment),'DEV'),'true', if(equals(toUpper(parameters('resourceNames').environment),'TST'),'true', if(equals(toUpper(parameters('resourceNames').environment),'TSTSCU'),'true', if(equals(toUpper(parameters('resourceNames').environment),'PRD'),'false', if(equals(toUpper(parameters('resourceNames').environment),'PRDWEU'),'false','false')))))]",
+    "enableVendorFeedFunctionRun": "[if(equals(toUpper(parameters('resourceNames').environment),'DEV'),'false', if(equals(toUpper(parameters('resourceNames').environment),'TST'),'false', if(equals(toUpper(parameters('resourceNames').environment),'TSTSCU'),'true', if(equals(toUpper(parameters('resourceNames').environment),'PRD'),'true', if(equals(toUpper(parameters('resourceNames').environment),'PRDWEU'),'false','false')))))]",
+    "vendorFeedSharePointSiteUrl": "[if(contains(toUpper(parameters('resourceNames').environment),'PRD'), 'https://microsoft.sharepoint.com/teams/InvoiceAccentureAutomation','https://microsoft.sharepoint.com/teams/MSInvoice_PoeDocumentRepository/Docs')]",
+    "vendorFeedSharePointFolder": "[if(equals(toUpper(parameters('resourceNames').environment),'DEV'),'VendorSecureFeedsDev', if(equals(toUpper(parameters('resourceNames').environment),'TST'),'VendorSecureFeedsTest', if(equals(toUpper(parameters('resourceNames').environment),'TSTSCU'),'VendorSecureFeedsTest', if(equals(toUpper(parameters('resourceNames').environment),'PRD'),'SecureFeeds', if(equals(toUpper(parameters('resourceNames').environment),'PRDWEU'),'SecureFeeds','')))))]",
+    "activateOneClickInvoicingForIndia": "[if(contains(toUpper(parameters('resourceNames').environment),'DEV'),'true', if(contains(toUpper(parameters('resourceNames').environment),'TST'),'true', if(contains(toUpper(parameters('resourceNames').environment),'TSTSCU'),'true', if(contains(toUpper(parameters('resourceNames').environment),'PRD'),'false', if(contains(toUpper(parameters('resourceNames').environment),'PRDWEU'),'false','false')))))]",
+    "activateInvoiceReviewWorkflow": "true",
+    "functionIdentities": {
+      "type": "SystemAssigned, UserAssigned",
+      "userAssignedIdentities": {
+        "[parameters('resourceNames').commonManagedIdentityResourceId]": {}
+      }
+    },
+    "functionSettings": {
+      "settings": [
+        {
+          "name": "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING",
+          "value": "[if(parameters('settings').invoiceIntake.isFirstDeployment, parameters('storageConnectionString'), concat(variables('commonKeyvaultSecrets_uri'), 'kv-', parameters('resourceNames').functionsStorageAccountName, '-ConnectionString', '/)'))]"
+        },
+        {
+          "name": "AzureWebJobsDashboard",
+          "value": "[if(parameters('settings').invoiceIntake.isFirstDeployment, parameters('storageConnectionString'), concat(variables('commonKeyvaultSecrets_uri'), 'kv-', parameters('resourceNames').functionsStorageAccountName, '-ConnectionString', '/)'))]"
+        },
+        {
+          "name": "AzureWebJobsStorage",
+          "value": "[if(parameters('settings').invoiceIntake.isFirstDeployment, parameters('storageConnectionString'), concat(variables('commonKeyvaultSecrets_uri'), 'kv-', parameters('resourceNames').functionsStorageAccountName, '-ConnectionString', '/)'))]"
+        },
+        {
+          "name": "AzureWebJobsDisableHomepage",
+          "value": true
+        },
+        {
+          "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+          "value": "[parameters('appInsightsInstrumentationKey')]"
+        },
+        {
+          "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+          "value": "[concat('InstrumentationKey=', parameters('appInsightsInstrumentationKey'))]"
+        },
+        {
+          "name": "ApplicationInsightsAgent_EXTENSION_VERSION",
+          "value": "~2"
+        },
+        {
+          "name": "WEBSITE_CONTENTSHARE",
+          "value": "[toLower(variables('functionAppName'))]"
+        },
+        {
+          "name": "FUNCTIONS_EXTENSION_VERSION",
+          "value": "~4"
+        },
+        {
+          "name": "WEBSITE_NODE_DEFAULT_VERSION",
+          "value": "8.11.1"
+        },
+        {
+          "name": "WEBSITE_LOAD_CERTIFICATES",
+          "value": "*"
+        },
+        {
+          "name": "FUNCTIONS_WORKER_RUNTIME",
+          "value": "dotnet-isolated"
+        },
+        {
+          "name": "ServiceTreeServiceOffering",
+          "value": "Finance"
+        },
+        {
+          "name": "ServiceTreeServiceLine",
+          "value": "Payments"
+        },
+        {
+          "name": "ServiceTreeService",
+          "value": "Invoice"
+        },
+        {
+          "name": "ServiceTreeComponentName",
+          "value": "Invoice Creation Services"
+        },
+        {
+          "name": "ServiceTreeComponentId",
+          "value": "8f82b513-1151-41fe-8abf-361190eb7912"
+        },
+        {
+          "name": "WEBSITE_RUN_FROM_PACKAGE",
+          "value": "1"
+        },
+        {
+          "name": "WEBSITE_CONTENTOVERVNET",
+          "value": "1"
+        },
+        {
+          "name": "WEBSITE_FIRST_PARTY_ID",
+          "value": "AntMDS"
+        },
+        {
+          "name": "AZURE_FUNCTIONS_ENVIRONMENT",
+          "value": "[toUpper(parameters('resourceNames').environment)]"
+        },
+        {
+          "name": "Environment",
+          "value": "[parameters('resourceNames').environment]"
+        },
+        {
+          "name": "InvoiceTaskHubName",
+          "value": "[toLower(concat('intaketaskhub', uniqueString(resourceGroup().id, deployment().name)))]"
+        },
+        {
+          "name": "SubscriptionId",
+          "value": "[subscription().id]"
+        },
+        {
+          "name": "Invoice_Service_Managed_ClientId",
+          "value": "[concat(variables('commonKeyvaultSecrets_uri'),  'kv-', variables('managedIdentityName') , '-ClientId', '/)')]"
+        },
+        {
+          "name": "Invoice_Service_Forex_ApiKey",
+          "value": "[concat(variables('commonKeyvaultSecrets_uri'),'Common-Forex-ApiKey/)')]"
+        },
+        {
+          "name": "Invoice_Service_SAP_APIKey",
+          "value": "[concat(variables('commonKeyvaultSecrets_uri'),if(contains(toUpper(parameters('resourceNames').environment),'PRD'),'Common-SAPWS-APIKey-Prod/)','Common-SAPWS-APIKey-Test/)'))]"
+        },
+        {
+          "name": "Primary_Service_Bus_Connection_String",
+          "value": "[concat(variables('commonKeyvaultSecrets_uri'), concat(parameters('resourceNames').legacyResourceNames.serviceBusName,'-ServiceBusConnectionString/)'))]"
+        },
+        {
+          "name": "ServiceBus:ConnectionString",
+          "value": "[concat(variables('commonKeyvaultSecrets_uri'), concat(parameters('resourceNames').legacyResourceNames.serviceBusName,'-ServiceBusConnectionString/)'))]"
+        },
+        {
+          "name": "GlobalApplicationServiceBus__fullyQualifiedNamespace",
+          "value": "[concat(parameters('resourceNames').legacyResourceNames.serviceBusName,'.servicebus.windows.net')]"
+        },
+        {
+          "name": "CxmlTransform_Storage_Endpoint",
+          "value": "[concat('https://', parameters('resourceNames').legacyResourceNames.eventsStorageAccountName, '.blob.core.windows.net/')]"
+        },
+        {
+          "name": "Invoice_Service_Configuration_CosmosDB_Endpoint",
+          "value": "[concat('https://',parameters('resourceNames').legacyResourceNames.configurationCosmosDBName,'.documents.azure.com:443/')]"
+        },
+        {
+          "name": "Invoice_Service_Invoice_CosmosDB_Endpoint",
+          "value": "[concat('https://',parameters('resourceNames').legacyResourceNames.invoiceCosmosDBName,'.documents.azure.com:443/')]"
+        },
+        {
+          "name": "Document_Service_Endpint",
+          "value": "[concat('https://',parameters('resourceNames').functionAppBaseName,parameters('settings').invoiceDocService.tag,'.azurewebsites.net')]"
+        },
+        {
+          "name": "Document_Service_ResourceId",
+          "value": "[if(contains(toUpper(parameters('resourceNames').environment),'PRD'),'api://msinv-document','api://msinv-document-ppe')]"
+        },
+        {
+          "name": "GovernmentComplianceServiceBusConnection__fullyQualifiedNamespace",
+          "value": "[concat('sb-inv-',if(contains(toUpper(parameters('resourceNames').environment),'PRD'),'prod',if(contains(toUpper(parameters('resourceNames').environment),'TST'),'ppe','dev')),'-',if(contains(toUpper(parameters('resourceNames').environment),'TSTSCU'),'wus3',if(contains(toUpper(parameters('resourceNames').environment),'PRDWEU'),'wus3','eus')),'-01.servicebus.windows.net')]"
+        },
+        {
+          "name": "Invoice_Service_MSAuthorize_ResourceId",
+          "value": "[if(contains(toUpper(parameters('resourceNames').environment),'PRD'),'https://msauthorize.microsoft.com/','https://msauthtest.microsoft.com/')]"
+        },
+        {
+          "name": "Invoice_Service_MSAuthorize_Endpoint",
+          "value": "[if(contains(toUpper(parameters('resourceNames').environment),'PRD'),'https://msauthorize.microsoft.com/','https://msauthtest.microsoft.com/')]"
+        },
+        {
+          "name": "Invoice_Service_Forex_ResourceId",
+          "value": "api://ce43b055-979e-463a-b46c-477ea4f41f55"
+        },
+        {
+          "name": "Invoice_Service_Forex_Uri",
+          "value": "https://rates.forex.microsoft.com/api/"
+        },
+        {
+          "name": "Invoice_Service_Procurement_Uri",
+          "value": "[if(contains(toUpper(parameters('resourceNames').environment),'PRD'),'https://procurementdataservices.azurewebsites.net','https://procurementdataservicesuat.azurewebsites.net')]"
+        },
+        {
+          "name": "Invoice_Service_Procurement_ResourceId",
+          "value": "[if(contains(toUpper(parameters('resourceNames').environment),'PRD'),'9f097b7b-f896-4f04-bdf4-c815f8714491','c4dea233-fb88-4b90-b404-327aca8caa53')]"
+        },
+        {
+          "name": "SAPeL_Invoice_Create_Event",
+          "value": "[concat(parameters('settings').common.sapConfiguration.alias,'.Invoice.Created.v1')]"
+        },
+        {
+          "name": "SAPeL_Invoice_Approved_Event",
+          "value": "[concat(parameters('settings').common.sapConfiguration.alias,'.Invoice.Approved.v1')]"
+        },
+        {
+          "name": "Invoice_Service_Invoice_DataSource",
+          "value": "[concat(parameters('resourceNames').legacyResourceNames.invoiceSQLServerName,'.database.windows.net')]"
+        },
+        {
+          "name": "Invoice_Service_CompanyConfiguration_DataSource",
+          "value": "[concat(parameters('resourceNames').legacyResourceNames.invoiceSQLServerName,'.database.windows.net')]"
+        },
+        {
+          "name": "Invoice_Service_Primary_AzureSql_ServerName",
+          "value": "[concat(parameters('resourceNames').primaryAzureSqlServerName,'.database.windows.net')]"
+        },
+        {
+          "name": "Invoice_Service_Details_SAPeL_Uri",
+          "value": "[tolower(concat('https://',parameters('settings').commonNetwork.frontDoorConfig.endPointsConfiguration[0].mainServiceName,'.',parameters('settings').commonNetwork.frontDoorConfig.endPointsConfiguration[0].serviceRoleName,'.',take(parameters('resourceNames').environment,3),'.microsoft.com'))]"
+        },
+        {
+          "name": "Invoice_Service_SAPeL_ResourceId",
+          "value": "[if(contains(toUpper(parameters('resourceNames').environment),'PRD'),'api://1ef9309b-2f0b-423f-a022-69e4a2f756c7','api://8555aca3-c600-43a6-92fe-fd584c8add72')]"
+        },
+        {
+          "name": "Invoice_Service_SAP_ResourceId",
+          "value": "[if(contains(toUpper(parameters('resourceNames').environment),'PRD'),'https://pSAPWSAADApp','https://tSAPWSAADApp')]"
+        },
+        {
+          "name": "AzureAd:ClientId",
+          "value": "[if(contains(toUpper(parameters('resourceNames').environment),'PRD'),'4bcebd7d-3191-417d-9b9c-23660aa04624','d96dcde2-e817-4488-88fa-28f392b9664b')]"
+        },
+        {
+          "name": "Invoice_User_Management_Service_Uri",
+          "value": "[concat('https://',parameters('resourceNames').publicIpBaseName,'-ums.',parameters('settings').common.region,'.cloudapp.azure.com/')]"
+        },
+        {
+          "name": "Invoice_User_Management_Service_Resource_ID",
+          "value": "[if(contains(toUpper(parameters('resourceNames').environment),'PRD'),'api://msinv-ums','api://msinv-ums-ppe')]"
+        },
+        {
+          "name": "AzureAd:OIDConfigEndpoint",
+          "value": "https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration"
+        },
+        {
+          "name": "AzureAd:TenantId",
+          "value": "[subscription().tenantId]"
+        },
+        {
+          "name": "AzureAd:Instance",
+          "value": "[variables('AzureActiveDirectoryConfiguration_Instance')]"
+        },
+        {
+          "name": "Invoice_Service_SAP_Uri",
+          "value": "[concat('https://sapws',parameters('settings').common.sapConfiguration.environment,'.microsoft.com',if(contains(toUpper(parameters('resourceNames').environment),'PRD'),'/',concat('/',parameters('settings').common.sapConfiguration.alias,'/')),'MSFIModernInvoice/')]"
+        },
+        {
+          "name": "Invoice_Service_SAP_PO_Uri",
+          "value": "[concat('https://sapws',parameters('settings').common.sapConfiguration.environment,'.microsoft.com',if(contains(toUpper(parameters('resourceNames').environment),'PRD'),'/',concat('/',parameters('settings').common.sapConfiguration.alias,'/')),'MSCPGPOLIB/')]"
+        },
+        {
+          "name": "Invoice_Service_SAP_Utility_Uri",
+          "value": "[concat('https://sapws',parameters('settings').common.sapConfiguration.environment,'.microsoft.com',if(contains(toUpper(parameters('resourceNames').environment),'PRD'),'/',concat('/',parameters('settings').common.sapConfiguration.alias,'/')),'MSCPGUTILLIB/')]"
+        },
+        {
+          "name": "Invoice_Service_SAP_Supplier_Uri",
+          "value": "[concat('https://sapws',parameters('settings').common.sapConfiguration.environment,'.microsoft.com',if(contains(toUpper(parameters('resourceNames').environment),'PRD'),'/',concat('/',parameters('settings').common.sapConfiguration.alias,'/')),'MSCPGVENDORLIB/')]"
+        },
+        {
+          "name": "Invoice_Service_Details_SAP_Uri",
+          "value": "[concat('https://sapws',parameters('settings').common.sapConfiguration.environment,'.microsoft.com',if(contains(toUpper(parameters('resourceNames').environment),'PRD'),'/',concat('/',parameters('settings').common.sapConfiguration.alias,'/')),'MSCPGINVOICELIB/')]"
+        },
+        {
+          "name": "Invoice_Service_Configuration_DB",
+          "value": "InvoiceCentralConfiguration"
+        },
+        {
+          "name": "Invoice_Service_Tenant_Configuration",
+          "value": "Tenant"
+        },
+        {
+          "name": "Invoice_Service_Profiles_DB_Name",
+          "value": "InvoiceCentralConfiguration"
+        },
+        {
+          "name": "Invoice_Service_CountryProfiles_Container",
+          "value": "CountryProfiles"
+        },
+        {
+          "name": "Invoice_Service_ApplicationConfiguration_Container",
+          "value": "ApplicationConfiguration"
+        },
+        {
+          "name": "Invoice_Service_TaxConfiguration_Container",
+          "value": "TaxConfiguration"
+        },
+        {
+          "name": "Invoice_Service_DefaultPurchaseClassification_Container",
+          "value": "DefaultPurchaseClassifications"
+        },
+        {
+          "name": "Cxml_Service_Bus_Subscription_name",
+          "value": "cxml"
+        },
+        {
+          "name": "Cxml_Service_Bus_topic_name",
+          "value": "cxml.request.accepted_2.1"
+        },
+        {
+          "name": "Invoice_Service_SAP_Timeout",
+          "value": "00:02:00"
+        },
+        {
+          "name": "Invoice_Service_SAPeL_Timeout",
+          "value": "00:01:40"
+        },
+        {
+          "name": "Invoice_Service_CompanyConfiguration_Catalog",
+          "value": "InvoiceCentral"
+        },
+        {
+          "name": "Invoice_Service_Invoice_Catalog",
+          "value": "InvoiceCentral"
+        },
+        {
+          "name": "Invoice_Service_ImportedData_Catalog",
+          "value": "ImportedData"
+        },
+        {
+          "name": "Invoice_Service_Procurement_Timeout",
+          "value": "00:00:30"
+        },
+        {
+          "name": "InvoiceRequest_Transform_Success_topic_name",
+          "value": "json.request.transform.success"
+        },
+        {
+          "name": "InvoiceRequest_Transform_Success_Subscription_name",
+          "value": "json"
+        },
+        {
+          "name": "Invoice_Service_Invoice_DB",
+          "value": "InvoiceService"
+        },
+        {
+          "name": "Invoice_Service_Invoice_Collection",
+          "value": "Requests"
+        },
+        {
+          "name": "Invoice_Service_MSAuthorize_Timeout",
+          "value": "00:00:30"
+        },
+        {
+          "name": "ServiceBus:InvoiceEventsTopicName",
+          "value": "invoice.events"
+        },
+        {
+          "name": "ServiceBus:DocumentEventsTopicName",
+          "value": "document.events"
+        },
+        {
+          "name": "ServiceBus:InvoiceEventsApprovalsTopicName",
+          "value": "invoice.events.approvals"
+        },
+        {
+          "name": "ServiceBus:InvoiceStatusTopicName",
+          "value": "invoice.status"
+        },
+        {
+          "name": "ServiceBus:InvoiceCopyEventsTopicName",
+          "value": "invoicecopy.events"
+        },
+        {
+          "name": "ServiceBus:InvoiceInterimApprovalEventsTopicName",
+          "value": "invoice.interimapproval.events"
+        },
+        {
+          "name": "ServiceBus:SAPelEventsTopicName",
+          "value": "sapel.events"
+        },
+        {
+          "name": "ServiceBus:InvoiceAggregationEventsTopicName",
+          "value": "invoice.aggregation.event"
+        },
+        {
+          "name": "Invoice_Service_Audit_Collection",
+          "value": "Audits"
+        },
+        {
+          "name": "ServiceBus:ComplianceValidationEventsTopicName",
+          "value": "compliance.invoice.external.events"
+        },
+        {
+          "name": "BaselineDateExceptionCountries",
+          "value": "DK;FI;FR;LU;NO;SK;SE;PL"
+        },
+        {
+          "name": "TaxDetailsFeatureEnableCountries",
+          "value": "JP"
+        },
+        {
+          "name": "Invoice_Service_UseSAPeL_Service",
+          "value": true
+        },
+        {
+          "name": "Invoice_Service_UseSAPeL_Service_ForAggregation",
+          "value": true
+        },
+        {
+          "name": "NebulaPOFeatureFlag",
+          "value": "true"
+        },
+        {
+          "name": "FDLPurchaseClassificationsFeatureFlag",
+          "value": "true"
+        },
+        {
+          "name": "Enable_VendorFeed_Function_Run",
+          "value": "[variables('enableVendorFeedFunctionRun')]"
+        },
+        {
+          "name": "VendorFeed_Function_Schedule",
+          "value": "0 0 */6 * * *" // Changing schedule to run every 6 hours for monitoring initial runs in PROD
+          //"value": "0 0 13 * * *" // Runs every day at 13:00 UTC
+        },
+        {
+          "name": "VendorFeed_SharePoint_SiteUrl",
+          "value": "[variables('vendorFeedSharePointSiteUrl')]"
+        },
+        {
+          "name": "VendorFeed_SharePoint_Library",
+          "value": "OneFinance"
+        },
+        {
+          "name": "VendorFeed_SharePoint_Folder",
+          "value": "[variables('vendorFeedSharePointFolder')]"
+        },
+        {
+          "name": "Activate_OneClick_Invoicing_For_India",
+          "value": "[variables('activateOneClickInvoicingForIndia')]"
+        },
+        {
+          "name": "Enable_PoLineField_For_ShippingCustomDuty",
+          "value": "[variables('enablePoLineFieldForShippingCustomDuty')]"
+        },
+        {
+          "name": "Sync_InvoiceSync_BatchSize",
+          "value": "[if(contains(toUpper(parameters('resourceNames').environment),'PRD'),'25','50')]"
+        },
+        {
+          "name": "Sync_MaxRetry_Count",
+          "value": "[if(contains(toUpper(parameters('resourceNames').environment),'PRD'),'5','5')]"
+        },
+        {
+          "name": "Sync_CreateInvoiceSapPayloads_Function_Schedule",
+          "value": "[if(contains(toUpper(parameters('resourceNames').environment),'PRD'),'0 */1 * * * *','0 */1 * * * *')]"
+        },
+        {
+          "name": "Sync_SyncAndAggregateInvoices_Function_Schedule",
+          "value": "[if(contains(toUpper(parameters('resourceNames').environment),'PRD'),'0 */1 * * * *','0 */1 * * * *')]"
+        },
+        {
+          "name": "Sync_ArchiveProcessedEventData_Function_Schedule",
+          "value": "[if(contains(toUpper(parameters('resourceNames').environment),'PRD'),'0 0 */1 * * *','0 */1 * * * *')]"
+        },
+        {
+          "name": "NebulaPOFeatureFlagEnabled",
+          "value": "true"
+        },
+        {
+          "name": "ECIFPOFeatureFlagEnabled",
+          "value": "true"
+        },
+        {
+          "name": "EVL_SCHEDULED_DATETIME",
+          "value": "2026-12-29 20:30:00"
+        },
+        {
+          "name": "EVL_POPULATE_STAGING_TABLE",
+          "value": "true"
+        },
+        {
+          "name": "EVL_RUN_CLEANUP",
+          "value": "true"
+        },
+        {
+          "name": "EVL_CLEANUP_SPECIFIC_ROWS",
+          "value": "false"
+        },
+        {
+          "name": "EVL_AUTOAPPROVE",
+          "value": "true"
+        },
+        {
+          "name": "EVL_CLEANUP_DB_ID_START",
+          "value": "1"
+        },
+        {
+          "name": "EVL_CLEANUP_DB_ID_END",
+          "value": "100"
+        },
+        {
+          "name": "AzureOpenAI:Credentials",
+          "value": "ManagedIdentity"
+        },
+        {
+          "name": "AzureOpenAI:ClientId",
+          "value": "[concat(variables('commonKeyvaultSecrets_uri'), 'kv-', variables('managedIdentityName'), '-ClientId', '/)')]"
+        },
+        {
+          "name": "AzureOpenAI:Endpoint",
+          "value": "[if(contains(toUpper(parameters('resourceNames').environment),'PRD'),'https://invprdoaicommon.openai.azure.com/', if(contains(toUpper(parameters('resourceNames').environment),'TST'),'https://invtstoaicommon.openai.azure.com/','https://invdevoaicommon.openai.azure.com/'))]"
+        },
+        {
+          "name": "AzureOpenAI:DeploymentName",
+          "value": "gpt-4o-agent"
+        },
+        {
+          "name": "AzureOpenAI:ApiVersion",
+          "value": "2024-02-01"
+        },
+        {
+          "name": "Agents:EvlSupplierOnboardingAgent:Name",
+          "value": "EvlSupplierOnboardingAgent"
+        },
+        {
+          "name": "Agents:EvlSupplierOnboardingAgent:Plugins:0",
+          "value": "OnboardingAgent.Plugins.EvlAgentPlugins.EvlValidateVendorIdCC"
+        },
+        {
+          "name": "Agents:EvlSupplierOnboardingAgent:Plugins:1",
+          "value": "OnboardingAgent.Plugins.EvlAgentPlugins.EvlStdCategoryPlugin"
+        },
+        {
+          "name": "Agents:EvlSupplierOnboardingAgent:Plugins:2",
+          "value": "OnboardingAgent.Plugins.EvlAgentPlugins.EvlPurchaseClassificationPlugin"
+        },
+        {
+          "name": "Agents:EvlSupplierOnboardingAgent:Plugins:3",
+          "value": "OnboardingAgent.Plugins.EvlAgentPlugins.EvlValidateGLIOCC"
+        },
+        {
+          "name": "Agents:EvlSupplierOnboardingAgent:Plugins:4",
+          "value": "OnboardingAgent.Plugins.EvlAgentPlugins.EvlSafeLimitChecker"
+        },
+        {
+          "name": "Agents:EvlSupplierOnboardingAgent:Plugins:5",
+          "value": "OnboardingAgent.Plugins.EvlAgentPlugins.EvlSupplierRecords"
+        },
+        {
+          "name": "Agents:EvlSupplierOnboardingAgent:Plugins:6",
+          "value": "OnboardingAgent.Plugins.EvlAgentPlugins.EvlSupplierOnboardingPlugin"
+        },
+        {
+          "name": "Agents:EvlRecordReviewerAgent:Name",
+          "value": "EvlRecordReviewerAgent"
+        },
+        {
+          "name": "Agents:EvlRecordReviewerAgent:Plugins:0",
+          "value": "EvlRecordReviewerAgent"
+        },
+        {
+          "name": "ECIFGLCodes",
+          "value": "0000770043;0000770044;0000770046;0000770047;0000770048;0000770049;0000770076;0000770078;0000770081"
+        },
+        {
+          "name": "Activate_Invoice_Review_Workflow",
+          "value": "[variables('activateInvoiceReviewWorkflow')]"
+        }
+      ]
+    },
+    "cosmosDbAccountName": "[concat(parameters('resourceNames').cosmosDbBaseName,parameters('settings').invoiceIntake.tag)]",
+
+    "singleLocation": [
+      {
+        "locationName": "[parameters('settings').common.region]",
+        "failoverPriority": 0,
+        "isZoneRedundant": false
+      }
+    ],
+    "geoLocations": [
+      {
+        "locationName": "[parameters('settings').common.region]",
+        "failoverPriority": 0,
+        "isZoneRedundant": false
+      },
+      {
+        "locationName": "[parameters('settings').common.secondaryRegion]",
+        "failoverPriority": 1,
+        "isZoneRedundant": false
+      }
+    ],
+    "cosmosDbIpRules": [
+      {
+        "ipAddressOrRange": "157.58.216.64/26"
+      },
+      {
+        "ipAddressOrRange": "207.68.190.32/27"
+      }
+    ]
+  },
+  "resources": [
+    {
+      "name": "[concat('createFunctionApp-', parameters('date'))]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').invoiceIntakeResourceGroupName]",
+      "apiVersion": "2022-09-01",
+      "dependsOn": [
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'template-function-network-integrated', '/versions/v1')]"
+        },
+        "parameters": {
+          "templatespecsBaseResourceId": {
+            "value": "[parameters('resourceNames').templatespecsBaseResourceId]"
+          },
+          "location": {
+            "value": "[parameters('settings').common.region]"
+          },
+          "functionIdentities": {
+            "value": "[variables('functionIdentities')]"
+          },
+          "functionAppName": {
+            "value": "[variables('functionAppName')]"
+          },
+          "functionDelagatedSubnetName": {
+            "value": "[parameters('settings').commonNetwork.subnets[1].subnetName]"
+          },
+          "functionPrivateEndpointSubnetName": {
+            "value": "[parameters('settings').commonNetwork.subnets[2].subnetName]"
+          },
+          "functionSettings": {
+            "value": "[variables('functionSettings')]"
+          },
+          "hostingPlanResourceId": {
+            "value": "[parameters('resourceNames').functionsHostingPlanResourceId]"
+          },
+          "componentTag": {
+            "value": "[parameters('settings').invoiceIntake.tag]"
+          },
+          "componentResourceGroupName": {
+            "value": "[parameters('resourceNames').invoiceIntakeResourceGroupName]"
+          },
+          "commonResourceGroupName": {
+            "value": "[parameters('resourceNames').commonResourceGroupName]"
+          },
+          "networkResourceGroupName": {
+            "value": "[parameters('resourceNames').commonNetworkResourceGroupName]"
+          },
+          "commonVirtualNetworkResourceId": {
+            "value": "[parameters('resourceNames').commonVirtualNetworkResourceId]"
+          },
+          "commonKeyvaultName": {
+            "value": "[variables('commonKeyvaultName')]"
+          },
+          "commonWorkSpaceResourceId": {
+            "value": "[parameters('resourceNames').commonWorkSpaceResourceId]"
+          },
+          "publicNetworkAccess": {
+            "value": "[parameters('settings').common.publicNetworkAccess]"
+          },
+          "roleDefinitionObjectId": {
+            "value": "[parameters('settings').secretManager.keyvaultSecretUserRoleDefinitionObjectId]"
+          },
+          "dotnetFrameworkVersion": {
+            "value": "[parameters('dotnetFrameworkVersion')]"
+          }
+        }
+      }
+    },
+    {
+      "condition": false,
+      "name": "[concat('createCosmosDbNetworkIntegrated-', parameters('date'))]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').invoiceIntakeResourceGroupName]",
+      "apiVersion": "2022-09-01",
+      "dependsOn": [
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'template-cosmosdb-network-integrated', '/versions/v1')]"
+        },
+        "parameters": {
+          "templatespecsBaseResourceId": {
+            "value": "[parameters('resourceNames').templatespecsBaseResourceId]"
+          },
+          "accountName": {
+            "value": "[variables('cosmosDbAccountName')]"
+          },
+          "location": {
+            "value": "[parameters('settings').common.region]"
+          },
+          "enableFreeTier": {
+            "value": false
+          },
+          "enableAnalyticalStorage": {
+            "value": false
+          },
+          "cosmosAPIType": {
+            "value": "GlobalDocumentDB"
+          },
+          "geoLocationConfiguration": {
+            "value": "[if(contains(parameters('resourceNames').environment,'dev'),variables('singleLocation'),variables('geoLocations'))]"
+          },
+          "ipRules": {
+            "value": "[variables('cosmosDbIpRules')]"
+          },
+          "workSpaceResourceId": {
+            "value": "[parameters('resourceNames').commonWorkSpaceResourceId]"
+          },
+          "keyVaultName": {
+            "value": "[variables('commonKeyvaultName')]"
+          },
+          "keyvaultResourceGroupName": {
+            "value": "[parameters('resourceNames').commonResourceGroupName]"
+          },
+          "commonVirtualNetworkResourceId": {
+            "value": "[parameters('resourceNames').commonVirtualNetworkResourceId]"
+          },
+          "cosmosDbPrivateEndpointSubnetName": {
+            "value": "[parameters('settings').commonNetwork.subnets[3].subnetName]"
+          },
+          "networkResourceGroupName": {
+            "value": "[parameters('resourceNames').commonNetworkResourceGroupName]"
+          },
+          "componentTag": {
+            "value": "[parameters('settings').invoiceIntake.tag]"
+          }
+        }
+      }
+    },
+    {
+      "condition": false,
+      "comments": "This will be used once the storage accounts are migrated. The subscription and resource group will be updated accordingly",
+      "name": "[concat('createEventsStoragePersmissions-', parameters('date'))]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('settings').invoiceDocService.docStorageResourceGroupName]",
+      "apiVersion": "2022-09-01",
+      "dependsOn": [
+        "[concat('createFunctionApp-', parameters('date'))]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'Security-template-authorization-roleAssigment', '/versions/v1')]"
+        },
+        "parameters": {
+          "resourceIdToAddAccessTo": {
+            "value": "[concat('/subscriptions/','3fc9f1b6-c8f9-454a-a29d-426ffe58dbed','/resourceGroups/','rg-630-invoice-messaging-dev-eastus','/providers/Microsoft.Storage/storageAccounts/',parameters('resourceNames').legacyResourceNames.eventsStorageAccountName)]"
+          },
+          "ObjectIdToGrantAccess": {
+            "value": "[reference(concat('createFunctionApp-', parameters('date'))).outputs.functionObjectId.value]"
+          },
+          "roleDefinitionObjectId": {
+            "value": "ba92f5b4-2d11-453d-a403-e96b0029c9fe"
+          }
+        }
+      }
+    }
+  ],
+  "outputs": {
+  }
+}

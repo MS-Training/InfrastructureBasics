@@ -102,6 +102,66 @@
                                         "name": "applicationsg",
                                         "RuleList": [
                                             {
+                                                "name": "AllowHTTPS",
+                                                "description": "Allow HTTPS traffic",
+                                                "direction": "Inbound",
+                                                "priority": 100,
+                                                "sourceAddressPrefix": "*",
+                                                "destinationAddressPrefix": "*",
+                                                "sourcePortRange": "*",
+                                                "destinationPortRange": "443",
+                                                "access": "Allow",
+                                                "protocol": "Tcp"
+                                            },
+                                            {
+                                                "name": "AllowHTTP",
+                                                "description": "Allow HTTP traffic",
+                                                "direction": "Inbound",
+                                                "priority": 110,
+                                                "sourceAddressPrefix": "*",
+                                                "destinationAddressPrefix": "*",
+                                                "sourcePortRange": "*",
+                                                "destinationPortRange": "80",
+                                                "access": "Allow",
+                                                "protocol": "Tcp"
+                                            },
+                                            {
+                                                "name": "AllowSSH",
+                                                "description": "Allow SSH from VNet only",
+                                                "direction": "Inbound",
+                                                "priority": 120,
+                                                "sourceAddressPrefix": "VirtualNetwork",
+                                                "destinationAddressPrefix": "*",
+                                                "sourcePortRange": "*",
+                                                "destinationPortRange": "22",
+                                                "access": "Allow",
+                                                "protocol": "Tcp"
+                                            },
+                                            {
+                                                "name": "AllowAzureLoadBalancer",
+                                                "description": "Allow Azure Load Balancer health probes",
+                                                "direction": "Inbound",
+                                                "priority": 130,
+                                                "sourceAddressPrefix": "AzureLoadBalancer",
+                                                "destinationAddressPrefix": "*",
+                                                "sourcePortRange": "*",
+                                                "destinationPortRange": "*",
+                                                "access": "Allow",
+                                                "protocol": "*"
+                                            },
+                                            {
+                                                "name": "DenyInternetOutbound",
+                                                "description": "Deny direct internet outbound traffic",
+                                                "direction": "Outbound",
+                                                "priority": 4000,
+                                                "sourceAddressPrefix": "*",
+                                                "destinationAddressPrefix": "Internet",
+                                                "sourcePortRange": "*",
+                                                "destinationPortRange": "*",
+                                                "access": "Deny",
+                                                "protocol": "*"
+                                            },
+                                            {
                                                 "name": "BlockAll",
                                                 "description": "block all traffic except what we've explicitly allow",
                                                 "direction": "Inbound",
@@ -135,6 +195,54 @@
                                         "comment": "The network security group name should correspond to the Subnet that will be assigned to its usage. Example Subnet00 would have an nsg called nsgSubnet00",
                                         "name": "datasg",
                                         "RuleList": [
+                                            {
+                                                "name": "AllowSQL",
+                                                "description": "Allow SQL traffic from application subnet",
+                                                "direction": "Inbound",
+                                                "priority": 100,
+                                                "sourceAddressPrefix": "10.0.0.0/22",
+                                                "destinationAddressPrefix": "*",
+                                                "sourcePortRange": "*",
+                                                "destinationPortRange": "1433",
+                                                "access": "Allow",
+                                                "protocol": "Tcp"
+                                            },
+                                            {
+                                                "name": "AllowCosmosDB",
+                                                "description": "Allow CosmosDB traffic",
+                                                "direction": "Inbound",
+                                                "priority": 110,
+                                                "sourceAddressPrefix": "10.0.0.0/22",
+                                                "destinationAddressPrefix": "*",
+                                                "sourcePortRange": "*",
+                                                "destinationPortRange": "443",
+                                                "access": "Allow",
+                                                "protocol": "Tcp"
+                                            },
+                                            {
+                                                "name": "AllowAzureLoadBalancer",
+                                                "description": "Allow Azure Load Balancer health probes",
+                                                "direction": "Inbound",
+                                                "priority": 120,
+                                                "sourceAddressPrefix": "AzureLoadBalancer",
+                                                "destinationAddressPrefix": "*",
+                                                "sourcePortRange": "*",
+                                                "destinationPortRange": "*",
+                                                "access": "Allow",
+                                                "protocol": "*"
+                                            },
+                                            {
+                                                "name": "DenyInternetOutbound",
+                                                "description": "Deny direct internet outbound traffic",
+                                                "direction": "Outbound",
+                                                "priority": 4000,
+                                                "sourceAddressPrefix": "*",
+                                                "destinationAddressPrefix": "Internet",
+                                                "sourcePortRange": "*",
+                                                "destinationPortRange": "*",
+                                                "access": "Deny",
+                                                "protocol": "*"
+                                            },
                                             {
                                                 "name": "BlockAll",
                                                 "description": "block all traffic except what we've explicitly allow",

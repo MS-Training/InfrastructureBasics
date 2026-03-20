@@ -1,0 +1,76 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"resourceNames": {
+			"type": "Object",
+			"metadata": {
+				"description": "This is coming from the parameter File under Parameters"
+			}
+		},
+		"settings": {
+			"type": "secureObject",
+			"metadata": {
+				"description": "This is coming from the parameter File under Parameters"
+			}
+		},
+		"date": {
+			"type": "string",
+			"defaultValue": "[utcNow()]"
+		}
+	},
+	"variables": {
+		"dbName": "ImportedData",
+		"azureSqlServerName": "[concat(parameters('resourceNames').azureSqlServeBaseName,parameters('settings').data.tag)]",
+		"dbPropertiesPrimary": {
+			"collation": "SQL_Latin1_General_CP1_CI_AI"
+		},
+		"dbPropertiesSecondary": {
+			"createMode": "OnlineSecondary",
+			"secondaryType": "Geo",
+			"requestedBackupStorageRedundancy": "Geo",
+			"sourceDatabaseId": "[concat(parameters('resourceNames').primaryAzureSqlResourceId,'/databases/',variables('dbName'))]",
+			"zoneRedundant": false,
+			"readScale": "Disabled",
+			"highAvailabilityReplicaCount": 0,
+			"autoPauseDelay": 0
+		}
+	},
+	"resources": [
+		{
+			"comments": "Only create the Database if this is the first deployment",
+			"name": "[concat('CreateImportedDataDataBase-', parameters('date'))]",
+			"condition": "[parameters('settings').externaldata.isFirstDeployment]",
+			"resourceGroup": "[parameters('resourceNames').dataStoresResourceGroupName]",
+			"type": "Microsoft.Resources/deployments",
+			"apiVersion": "2022-09-01",
+			"dependsOn": [],
+			"properties": {
+				"mode": "Incremental",
+				"templateLink": {
+					"id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'AzureSQL-template-azure-sql-database', '/versions/v1')]"
+				},
+				"parameters": {
+					"sqlServerName": {
+						"value": "[variables('azureSqlServerName')]"
+					},
+					"dbName": {
+						"value": "[variables('dbName')]"
+					},
+					"dbTierName": {
+						"value": "[parameters('settings').externaldata.databaseConfiguration.dbTierName]"
+					},
+					"dbSkuName": {
+						"value": "[parameters('settings').externaldata.databaseConfiguration.dbSkuName]"
+					},
+					"dbProperties": {
+						"value": "[if(parameters('settings').common.isPrimaryRegion,variables('dbPropertiesPrimary'),variables('dbPropertiesSecondary'))]"
+					},
+					"isPrimaryReplica": {
+						"value": "[parameters('settings').common.isPrimaryRegion]"
+					}
+				}
+			}
+		}
+	]
+}

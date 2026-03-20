@@ -1,0 +1,440 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "settings": {
+            "type": "secureObject",
+            "metadata": {
+                "description": "This is coming from the parameter File under Parameters"
+            }
+        },
+        "resourceNames": {
+            "type": "object",
+            "metadata": {
+                "description": "This is coming from the parameter File under Parameters"
+            }
+        },
+        "appInsightsInstrumentationKey": {
+            "type": "securestring"
+        },
+        "date": {
+            "type": "string",
+            "defaultValue": "[utcNow()]"
+        }
+    },
+    "variables": {
+        "RAMPComment": "We reference the manual deployment steps to build this release. This deployment creates the RAMP Function Apps and their Managed Identity. It also adds the Managed Identity details to the common Keyvault as secrets.",
+        "RAMPv3Source": "https://eng.ms/docs/office-of-coo/commerce-ecosystems/commerce-platform-experiences/reliability-and-compliance-engineering/commerce-services-team/cre-compliance-engineering/design-documents/ramp/uar/onboardingrampclientagentv3/introduction",
+        "RAMPv3ManualDeployment": "https://eng.ms/docs/office-of-coo/commerce-ecosystems/commerce-platform-experiences/reliability-and-compliance-engineering/commerce-services-team/cre-compliance-engineering/design-documents/ramp/uar/onboardingrampclientagentv3/manualdeploymentsteps",
+        "commonKeyvaultName": "[tolower(concat(parameters('resourceNames').keyVaultBaseName,parameters('settings').common.tag))]",
+        "commonKeyvaultSecrets_uri": "[concat('@Microsoft.KeyVault(SecretUri=https://', variables('commonKeyvaultName'), '.vault.azure.net/secrets')]",
+        "rampScanFunctionAppName": "[concat(parameters('resourceNames').functionAppBaseName,parameters('settings').ramp.tag, 'scan')]",
+        "rampScanFunctionAppResourcePath": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('resourceNames').rampResourceGroupName,'/providers/Microsoft.Web/sites/', variables('rampScanFunctionAppName'))]",
+        "rampUpdateFunctionAppName": "[concat(parameters('resourceNames').functionAppBaseName,parameters('settings').ramp.tag, 'update')]",
+        "rampUpdateFunctionAppResourcePath": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('resourceNames').rampResourceGroupName,'/providers/Microsoft.Web/sites/', variables('rampUpdateFunctionAppName'))]",
+        "managedIdentityName": "[tolower(concat(parameters('resourceNames').managedIdentityBaseName,parameters('settings').ramp.tag))]",
+        "rampManagedIdentityResourceId": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('resourceNames').rampResourceGroupName, '/providers/Microsoft.ManagedIdentity/userAssignedIdentities/', variables('managedIdentityName'))]",
+        "rampUpdateFunctionBlobUri": "[concat('https://', parameters('resourceNames').functionsStorageAccountName, '.blob.core.windows.net/', parameters('resourceNames').functionAppBaseName, parameters('settings').ramp.tag, '/Ramp.ClientFunc.zip')]",
+        "AzureWebJobsStorage__clientId": "[concat(variables('commonKeyvaultSecrets_uri'), '/kv-', variables('managedIdentityName'), '-ClientId', '/)')]",
+        "rampScan_WEBSITE_RUN_FROM_PACKAGE": "[concat('https://', parameters('resourceNames').functionsStorageAccountName, '.blob.core.windows.net/', parameters('resourceNames').functionAppBaseName, parameters('settings').ramp.tag, '/Ramp.ClientFunc.zip')]",
+        "rampUpdate_WEBSITE_RUN_FROM_PACKAGE": "[concat('https://', parameters('resourceNames').functionsStorageAccountName, '.blob.core.windows.net/', parameters('resourceNames').functionAppBaseName, parameters('settings').ramp.tag, '/Ramp.AutoUpdateFunc.zip')]",
+        "functionIdentities": {
+            "type": "SystemAssigned, UserAssigned",
+            "userAssignedIdentities": {
+                "[variables('rampManagedIdentityResourceId')]": {}
+            }
+        },
+        "rampScanFunctionSettings": {
+            "settings": [
+                {
+                    "name": "RampClientHostPackageVersion",
+                    "value": "3.1.0.3"
+                },
+                {
+                    "name": "HostResourceId",
+                    "value": "[variables('rampScanFunctionAppResourcePath')]"
+                },
+                {
+                    "name": "KustoLogSettings",
+                    "value": "{\"kustoSessionLogTableName\":\"RampClientSessionLogs\",\"kustoExecutionLogTableName\":\"RampClientExecutionLogs\",\"kustoExecutionLogMinLogLevel\":\"Information\",\"kustoExecutionLogBatchSize\":10,\"kustoExecutionLogBatchIntervalInMinutes\":2}"
+                },
+                {
+                    "name": "AnalysisServicesSettings",
+                    "value": "[parameters('settings').ramp.functionSettings.rampScanProperties.AnalysisServicesSettings]"
+                },
+                {
+                    "name": "AzureSqlSettings",
+                    "value": "[parameters('settings').ramp.functionSettings.rampScanProperties.AzureSqlSettings]"
+                },
+                {
+                    "name": "DatabricksSettings",
+                    "value": "[parameters('settings').ramp.functionSettings.rampScanProperties.DatabricksSettings]"
+                },
+                {
+                    "name": "LedgerSettings",
+                    "value": "[parameters('settings').ramp.functionSettings.rampScanProperties.LedgerSettings]"
+                },
+                {
+                    "name": "SqlMiSettings",
+                    "value": "[parameters('settings').ramp.functionSettings.rampScanProperties.SqlMiSettings]"
+                },
+                {
+                    "name": "AzureWebJobsStorage__accountName",
+                    "value": "[parameters('resourceNames').functionsStorageAccountName]"
+                },
+                {
+                    "name": "AzureWebJobsStorage__clientId",
+                    "value": "[variables('AzureWebJobsStorage__clientId')]"
+                },
+                {
+                    "name": "AzureWebJobsStorage__credential",
+                    "value": "ManagedIdentity"
+                },
+                {
+                    "name": "WEBSITE_RUN_FROM_PACKAGE",
+                    "value": "[variables('rampScan_WEBSITE_RUN_FROM_PACKAGE')]"
+                },
+                {
+                    "name": "WEBSITE_RUN_FROM_PACKAGE_BLOB_MI_RESOURCE_ID",
+                    "value": "[variables('rampManagedIdentityResourceId')]"
+                },
+                {
+                    "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                    "value": "[parameters('appInsightsInstrumentationKey')]"
+                },
+                {
+                    "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+                    "value": "[concat('InstrumentationKey=', parameters('appInsightsInstrumentationKey'))]"
+                },
+                {
+                    "name": "ApplicationInsightsAgent_EXTENSION_VERSION",
+                    "value": "~2"
+                },
+                {
+                    "name": "WEBSITE_USE_PLACEHOLDER_DOTNETISOLATED",
+                    "value": "1"
+                },
+                {
+                    "name": "FUNCTIONS_EXTENSION_VERSION",
+                    "value": "~4"
+                },
+                {
+                    "name": "WEBSITE_CONTENTOVERVNET",
+                    "value": "1"
+                },
+                {
+                    "name": "FUNCTIONS_WORKER_RUNTIME",
+                    "value": "dotnet-isolated"
+                }
+            ]
+        },
+        "rampUpdateFunctionSettings": {
+            "settings": [
+                {
+                    "name": "BlobContainerUri",
+                    "value": "[variables('rampUpdateFunctionBlobUri')]"
+                },
+                {
+                    "name": "HostResourceId",
+                    "value": "[variables('rampUpdateFunctionAppResourcePath')]"
+                },
+                {
+                    "name": "Environment",
+                    "value": "[parameters('settings').ramp.functionSettings.rampUpdateProperties.Environment]"
+                },
+                {
+                    "name": "RampClientFunctionAppName",
+                    "value": "[variables('rampScanFunctionAppName')]"
+                },
+                {
+                    "name": "ResourceGroupName",
+                    "value": "[parameters('resourceNames').rampResourceGroupName]"
+                },
+                {
+                    "name": "SubscriptionId",
+                    "value": "[subscription().subscriptionId]"
+                },
+                {
+                    "name": "TenantId",
+                    "value": "[subscription().tenantId]"
+                },
+                {
+                    "name": "AzureWebJobsStorage__accountName",
+                    "value": "[parameters('resourceNames').functionsStorageAccountName]"
+                },
+                {
+                    "name": "AzureWebJobsStorage__clientId",
+                    "value": "[variables('AzureWebJobsStorage__clientId')]"
+                },
+                {
+                    "name": "AzureWebJobsStorage__credential",
+                    "value": "ManagedIdentity"
+                },
+                {
+                    "name": "WEBSITE_RUN_FROM_PACKAGE",
+                    "value": "[variables('rampUpdate_WEBSITE_RUN_FROM_PACKAGE')]"
+                },
+                {
+                    "name": "WEBSITE_RUN_FROM_PACKAGE_BLOB_MI_RESOURCE_ID",
+                    "value": "[variables('rampManagedIdentityResourceId')]"
+                },
+                {
+                    "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                    "value": "[parameters('appInsightsInstrumentationKey')]"
+                },
+                {
+                    "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+                    "value": "[concat('InstrumentationKey=', parameters('appInsightsInstrumentationKey'))]"
+                },
+                {
+                    "name": "ApplicationInsightsAgent_EXTENSION_VERSION",
+                    "value": "~2"
+                },
+                {
+                    "name": "WEBSITE_USE_PLACEHOLDER_DOTNETISOLATED",
+                    "value": "1"
+                },
+                {
+                    "name": "FUNCTIONS_EXTENSION_VERSION",
+                    "value": "~4"
+                },
+                {
+                    "name": "WEBSITE_CONTENTOVERVNET",
+                    "value": "1"
+                },
+                {
+                    "name": "FUNCTIONS_WORKER_RUNTIME",
+                    "value": "dotnet-isolated"
+                }
+            ]
+        }
+    },
+    "resources": [
+        {
+            "comments": "Create a User Managed Identity for the Function App. We will not put the Identity in a keyvault in this operation.",
+            "name": "[concat('createManagedIdentityRamp-', parameters('date'))]",
+            "type": "Microsoft.Resources/deployments",
+            "resourceGroup": "[parameters('resourceNames').rampResourceGroupName]",
+            "apiVersion": "2020-06-01",
+            "dependsOn": [],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'Identity-template-managed-identity', '/versions/v1')]"
+                },
+                "parameters": {
+                    "managedIdentityName": {
+                        "value": "[variables('managedIdentityName')]"
+                    }
+                }
+            }
+        },
+        {
+            "comments": "Add the Managed Identitys ClientId and PrincipalId to the common keyvault as secrets so that the Function App can use them.",
+            "name": "addRampManagedIdentityDetailsToKeyvault",
+            "type": "Microsoft.Resources/deployments",
+            "resourceGroup": "[parameters('resourceNames').commonResourceGroupName]",
+            "apiVersion": "2020-06-01",
+            "dependsOn": [
+                "[concat('createManagedIdentityRamp-', parameters('date'))]"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'KeyVault-template-keyVault-secrets', '/versions/v1')]"
+                },
+                "parameters": {
+                    "keyVaultName": {
+                        "value": "[variables('commonKeyvaultName')]"
+                    },
+                    "secretsObject": {
+                        "value": {
+                            "secrets": [
+                                {
+                                    "secretName": "[concat('kv-', variables('managedIdentityName'), '-PrincipalId')]",
+                                    "secretValue": "[reference(variables('rampManagedIdentityResourceId'), '2018-11-30').principalId]"
+                                },
+                                {
+                                    "secretName": "[concat('kv-', variables('managedIdentityName'), '-ClientId')]",
+                                    "secretValue": "[reference(variables('rampManagedIdentityResourceId'), '2018-11-30').clientId]"
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "name": "[concat('createRampScanFunctionApp-', parameters('date'))]",
+            "type": "Microsoft.Resources/deployments",
+            "resourceGroup": "[parameters('resourceNames').rampResourceGroupName]",
+            "apiVersion": "2022-09-01",
+            "dependsOn": [
+                "[concat('createManagedIdentityRamp-', parameters('date'))]"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'template-function-network-integrated', '/versions/v1')]"
+                },
+                "parameters": {
+                    "dotnetFrameworkVersion": {
+                        "value": "[parameters('settings').ramp.functionSettings.dotnetFrameworkVersion]"
+                    },
+                    "functionIdentities": {
+                        "value": "[variables('functionIdentities')]"
+                    },
+                    "templatespecsBaseResourceId": {
+                        "value": "[parameters('resourceNames').templatespecsBaseResourceId]"
+                    },
+                    "location": {
+                        "value": "[parameters('settings').common.region]"
+                    },
+                    "functionAppName": {
+                        "value": "[variables('rampScanFunctionAppName')]"
+                    },
+                    "functionDelagatedSubnetName": {
+                        "value": "[parameters('settings').commonNetwork.subnets[1].subnetName]"
+                    },
+                    "functionPrivateEndpointSubnetName": {
+                        "value": "[parameters('settings').commonNetwork.subnets[2].subnetName]"
+                    },
+                    "functionSettings": {
+                        "value": "[variables('rampScanFunctionSettings')]"
+                    },
+                    "hostingPlanResourceId": {
+                        "value": "[parameters('resourceNames').functionsHostingPlanResourceId]"
+                    },
+                    "componentTag": {
+                        "value": "[parameters('settings').ramp.tag]"
+                    },
+                    "componentResourceGroupName": {
+                        "value": "[parameters('resourceNames').rampResourceGroupName]"
+                    },
+                    "commonResourceGroupName": {
+                        "value": "[parameters('resourceNames').commonResourceGroupName]"
+                    },
+                    "networkResourceGroupName": {
+                        "value": "[parameters('resourceNames').commonNetworkResourceGroupName]"
+                    },
+                    "commonVirtualNetworkResourceId": {
+                        "value": "[parameters('resourceNames').commonVirtualNetworkResourceId]"
+                    },
+                    "commonKeyvaultName": {
+                        "value": "[variables('commonKeyvaultName')]"
+                    },
+                    "commonWorkSpaceResourceId": {
+                        "value": "[parameters('resourceNames').commonWorkSpaceResourceId]"
+                    },
+                    "publicNetworkAccess": {
+                        "value": "[parameters('settings').common.publicNetworkAccess]"
+                    },
+                    "roleDefinitionObjectId": {
+                        "value": "[parameters('settings').secretManager.keyvaultSecretUserRoleDefinitionObjectId]"
+                    }
+                }
+            }
+        },
+        {
+            "name": "[concat('createRampUpdateFunctionApp-', parameters('date'))]",
+            "type": "Microsoft.Resources/deployments",
+            "resourceGroup": "[parameters('resourceNames').rampResourceGroupName]",
+            "apiVersion": "2022-09-01",
+            "dependsOn": [
+                "[concat('createManagedIdentityRamp-', parameters('date'))]",
+                "[concat('createRampScanFunctionApp-', parameters('date'))]"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'template-function-network-integrated', '/versions/v1')]"
+                },
+                "parameters": {
+                    "dotnetFrameworkVersion": {
+                        "value": "[parameters('settings').ramp.functionSettings.dotnetFrameworkVersion]"
+                    },
+                    "functionIdentities": {
+                        "value": "[variables('functionIdentities')]"
+                    },
+                    "templatespecsBaseResourceId": {
+                        "value": "[parameters('resourceNames').templatespecsBaseResourceId]"
+                    },
+                    "location": {
+                        "value": "[parameters('settings').common.region]"
+                    },
+                    "functionAppName": {
+                        "value": "[variables('rampUpdateFunctionAppName')]"
+                    },
+                    "functionDelagatedSubnetName": {
+                        "value": "[parameters('settings').commonNetwork.subnets[1].subnetName]"
+                    },
+                    "functionPrivateEndpointSubnetName": {
+                        "value": "[parameters('settings').commonNetwork.subnets[2].subnetName]"
+                    },
+                    "functionSettings": {
+                        "value": "[variables('rampUpdateFunctionSettings')]"
+                    },
+                    "hostingPlanResourceId": {
+                        "value": "[parameters('resourceNames').functionsHostingPlanResourceId]"
+                    },
+                    "componentTag": {
+                        "value": "[parameters('settings').ramp.tag]"
+                    },
+                    "componentResourceGroupName": {
+                        "value": "[parameters('resourceNames').rampResourceGroupName]"
+                    },
+                    "commonResourceGroupName": {
+                        "value": "[parameters('resourceNames').commonResourceGroupName]"
+                    },
+                    "networkResourceGroupName": {
+                        "value": "[parameters('resourceNames').commonNetworkResourceGroupName]"
+                    },
+                    "commonVirtualNetworkResourceId": {
+                        "value": "[parameters('resourceNames').commonVirtualNetworkResourceId]"
+                    },
+                    "commonKeyvaultName": {
+                        "value": "[variables('commonKeyvaultName')]"
+                    },
+                    "commonWorkSpaceResourceId": {
+                        "value": "[parameters('resourceNames').commonWorkSpaceResourceId]"
+                    },
+                    "publicNetworkAccess": {
+                        "value": "[parameters('settings').common.publicNetworkAccess]"
+                    },
+                    "roleDefinitionObjectId": {
+                        "value": "[parameters('settings').secretManager.keyvaultSecretUserRoleDefinitionObjectId]"
+                    }
+                }
+            }
+        },
+        {
+            "comments": "Add permissions for the Function Apps Managed Identity to access the Functions Storage Account. Blob Storage Data Owner is required (RAMP requirement) for the Managed Identity to be able to read the function package from the storage account.",
+            "name": "[concat('createRampScanFunctionStoragePermissions-', parameters('date'))]",
+            "type": "Microsoft.Resources/deployments",
+            "resourceGroup": "[parameters('resourceNames').commonResourceGroupName]",
+            "apiVersion": "2022-09-01",
+            "dependsOn": [
+                "[concat('createRampScanFunctionApp-', parameters('date'))]",
+                "[concat('createManagedIdentityRamp-', parameters('date'))]"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'Security-template-authorization-roleAssigment', '/versions/v1')]"
+                },
+                "parameters": {
+                    "resourceIdToAddAccessTo": {
+                        "value": "[concat('/subscriptions/',subscription().subscriptionId,'/resourceGroups/',parameters('resourceNames').commonResourceGroupName,'/providers/Microsoft.Storage/storageAccounts/',parameters('resourceNames').functionsStorageAccountName)]"
+                    },
+                    "ObjectIdToGrantAccess": {
+                        "value": "[reference(concat('createManagedIdentityRamp-', parameters('date'))).outputs.managedIdentityObjectId.value]"
+                    },
+                    "roleDefinitionObjectId": {
+                        "value": "b7e6dc6d-f1e8-4753-8033-0f276bb0955b"
+                    }
+                }
+            }
+        }
+    ],
+    "outputs": {}
+}

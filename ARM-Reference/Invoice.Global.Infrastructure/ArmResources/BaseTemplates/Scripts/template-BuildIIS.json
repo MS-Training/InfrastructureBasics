@@ -1,0 +1,52 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "armTemplatesSasToken": {
+            "type": "string"
+        },
+        "armTemplateURI": {
+            "type": "string",
+            "metadata": {
+                "description": "The Url of the storage account and Container where your Resources are stored"
+            }
+        },
+        "vmName": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of the existing VM to apply the DSC configuration to"
+            }
+        },
+        "vmRegion": {
+            "type": "string",
+            "minLength": 1,
+            "metadata": {
+                "description": "Location for all resources."
+            }
+        }
+    },
+    "variables": {
+        "scriptsTemplatePath": "/Scripts/",
+        "configurationFunction": "Deploy-WebServer.ps1\\DeployWebServer"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Compute/virtualMachines/extensions",
+            "name": "[concat(parameters('vmName'),'/DSCExtension')]",
+            "apiVersion": "2015-06-15",
+            "location": "[parameters('vmRegion')]",
+            "properties": {
+                "publisher": "Microsoft.Powershell",
+                "type": "DSC",
+                "typeHandlerVersion": "2.18",
+                "autoUpgradeMinorVersion": true,
+                "protectedSettings": {},
+                "settings": {
+                    "ModulesUrl": "[concat(parameters('armTemplateURI'), variables('scriptsTemplatePath'), 'Deploy-WebServer.ps1.zip', parameters('armTemplatesSasToken'))]",
+                    "SasToken": "",
+                    "ConfigurationFunction": "[variables('configurationFunction')]"
+                }
+            }
+        }
+    ]
+}

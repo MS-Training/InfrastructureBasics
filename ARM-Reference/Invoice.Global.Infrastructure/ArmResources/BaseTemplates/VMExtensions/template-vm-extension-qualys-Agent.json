@@ -1,0 +1,44 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+  "parameters": {
+    "vmName": {
+      "type": "string",
+      "minLength": 3,
+      "metadata": {
+        "description": "Name for the Virtual Machine."
+      }
+    },
+    "vmRegion": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location for all resources."
+      }
+    }
+  },
+    "variables": {
+        
+    },
+    "resources": [
+      {
+        "type": "Microsoft.Compute/virtualMachines/extensions",
+        "name": "[concat(parameters('vmName'),'/', 'QualysAgent')]",
+        "apiVersion": "2019-07-01",
+        "location": "[parameters('vmRegion')]",
+        "dependsOn": [
+        ],
+        "properties": {
+          "publisher": "Qualys",
+          "type": "QualysAgent",
+          "typeHandlerVersion": "1.6",
+          "autoUpgradeMinorVersion": true,
+          "settings": {
+
+          }
+        }
+
+      }
+    ],
+    "outputs": {}
+}

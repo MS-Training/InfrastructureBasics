@@ -1,0 +1,55 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "storageAccountName": {
+            "type": "string",
+            "metadata": {
+                "description": "Storage Account in which blob container needs to be deployed"
+            }
+        },
+        "snapshotDeletionDays": {
+            "type": "int",
+            "defaultValue" : 90,
+            "metadata": {
+                "description": "Blob Container name which needs to be deployed"
+            }
+        }
+    },
+    "variables": {},
+    "resources": [
+    {
+      "name": "[concat(parameters('storageAccountName'), '/default/')]",
+      "type": "Microsoft.Storage/storageAccounts/managementPolicies",
+      "apiVersion": "2019-04-01",
+      "dependsOn": [],
+      "comments": "set blob retention policy to remove data older then 90 days",
+      "properties": {
+        "policy": {
+          "rules": [
+            {
+              "name": "snapshotRule",
+              "enabled": true,
+              "type": "Lifecycle",
+              "definition": {
+                "filters": {
+                  "blobTypes": [
+                    "blockBlob"
+                  ]
+                },
+                "actions": {
+                  "snapshot": {
+                    "delete": {
+                      "daysAfterCreationGreaterThan": "[parameters('snapshotDeletionDays')]"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+    ],
+    "outputs": {}
+}

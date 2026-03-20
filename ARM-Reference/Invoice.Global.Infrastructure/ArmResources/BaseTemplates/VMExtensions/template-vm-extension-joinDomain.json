@@ -1,0 +1,187 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "armTemplatesSasToken": {
+      "type": "string"
+    },
+    "armTemplateURI": {
+      "type": "string"
+    },
+    "vmName": {
+      "type": "string",
+      "minLength": 3,
+      "metadata": {
+        "description": "Name for the Virtual Machine."
+      }
+    },
+    "vmRegion": {
+      "minLength": 3,
+      "type": "String",
+      "defaultValue": "[resourceGroup().location]",
+      "allowedValues": [
+        "[resourceGroup().location]",
+        "eastus",
+        "eastus2",
+        "centralus",
+        "northcentralus",
+        "southcentralus",
+        "southeastasia",
+        "westcentralus",
+        "westeurope",
+        "northeurope",
+        "westus",
+        "westus2"
+      ],
+      "metadata": {
+        "description": ""
+      }
+    },
+    "localAdminUserName": {
+      "type": "string",
+      "defaultValue": "ITSVC0",
+      "metadata": {
+        "description": "Local Username for the Virtual Machine."
+      }
+    },
+    "localAdminPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Local Password for the Virtual Machine."
+      }
+    },
+    "domainJoinUserName": {
+      "minLength": 1,
+      "type": "String",
+      "defaultValue": "redmond\\mssoadev",
+      "metadata": {
+        "description": "Account for domain joining, ex. redmond\\serviceaccount"
+      }
+    },
+    "domainJoinPassword": {
+      "minLength": 1,
+      "type": "SecureString",
+      "metadata": {
+        "description": "Password for domain joining"
+      }
+    },
+    "localAdmins": {
+      "defaultValue": "Redmond\\mssoadev,Redmond\\JIT_MSS-FIFSASWE_ElevatedAccess",
+      "type": "String",
+      "metadata": {
+        "description": "Users and groups added to the local administrator group.  For SQL, SQL AO, and Web ILB templates. Example: Redmond\\SQLSvcAccounts,redmond\\serviceaccount,redmond\\teamgroup"
+      }
+    },
+    "SQLAdmins": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "SQL SYS admins that can login to the Default SQL Instance instaqlled on the VM. csv list of domain\\user. Leave this blank (default value) if no SQL VM"
+      }
+    },
+    "Domain": {
+      "defaultValue": "Redmond",
+      "allowedValues": [
+        "Redmond",
+        "Partners",
+        "Europe",
+        "NorthAmerica",
+        "Fareast",
+        "SouthPacific",
+        "SouthAmerica",
+        "MiddleEast",
+        "Africa"
+      ],
+      "type": "String",
+      "metadata": {
+        "description": "The FQDN of the AD domain.  Important! Administrative access to servers at Microsoft may require the use of Secure Admin Workstation SAW.  Details at http://aka.ms/SAWfaq"
+      }
+    }
+  },
+  "variables": {
+    "scriptsURL": "[concat(parameters('armTemplateURI'),'/Scripts/')]",
+    "DomainJoinzip": "[concat('DomainJoin.ps1.zip',parameters('armTemplatesSasToken'))]",
+    "modulesUrl": "[concat(variables('scriptsURL'),variables('DomainJoinzip'))]",
+    "Redmond": {
+      "FQDN": "redmond.corp.microsoft.com",
+      "OUPath": "OU=CloudMSVMs,OU=ITManaged,OU=ITServices,DC=redmond,DC=corp,DC=microsoft,DC=com"
+    },
+    "Partners": {
+      "FQDN": "partners.extranet.microsoft.com",
+      "OUPath": "OU=CloudMSVMs,OU=ITManaged,OU=ITServices,DC=partners,DC=extranet,DC=microsoft,DC=com"
+    },
+    "Europe": {
+      "FQDN": "europe.corp.microsoft.com",
+      "OUPath": "OU=CloudMSVMs,OU=ITManaged,OU=ITServices,DC=Europe,DC=corp,DC=microsoft,DC=com"
+    },
+    "NorthAmerica": {
+      "FQDN": "northamerica.corp.microsoft.com",
+      "OUPath": "OU=CloudMSVMs,OU=ITManaged,OU=ITServices,DC=NorthAmerica,DC=corp,DC=microsoft,DC=com"
+    },
+    "Fareast": {
+      "FQDN": "fareast.corp.microsoft.com",
+      "OUPath": "OU=CloudMSVMs,OU=ITManaged,OU=ITServices,DC=Fareast,DC=corp,DC=microsoft,DC=com"
+    },
+    "SouthPacific": {
+      "FQDN": "southpacific.corp.microsoft.com",
+      "OUPath": "OU=CloudMSVMs,OU=ITManaged,OU=ITServices,DC=southpacific,DC=corp,DC=microsoft,DC=com"
+    },
+    "SouthAmerica": {
+      "FQDN": "southamerica.corp.microsoft.com",
+      "OUPath": "OU=CloudMSVMs,OU=ITManaged,OU=ITServices,DC=southamerica,DC=corp,DC=microsoft,DC=com"
+    },
+    "MiddleEast": {
+      "FQDN": "middleeast.corp.microsoft.com",
+      "OUPath": "OU=CloudMSVMs,OU=ITManaged,OU=ITServices,DC=middleeast,DC=corp,DC=microsoft,DC=com"
+    },
+    "Africa": {
+      "FQDN": "africa.corp.microsoft.com",
+      "OUPath": "OU=CloudMSVMs,OU=ITManaged,OU=ITServices,DC=africa,DC=corp,DC=microsoft,DC=com"
+    },
+    "DomainData": "[variables(parameters('domain'))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "name": "[concat(parameters('vmName'),'/DSCExtension')]",
+      "apiVersion": "2019-07-01",
+      "dependsOn": [
+      ],
+      "location": "[parameters('vmRegion')]",
+      "properties": {
+        "publisher": "Microsoft.Powershell",
+        "type": "DSC",
+        "typeHandlerVersion": "2.18",
+        "autoUpgradeMinorVersion": true,
+        "forceUpdateTag": "1",
+        "settings": {
+          "ModulesUrl": "[variables('modulesUrl')]",
+          "SasToken": "",
+          "ConfigurationFunction": "DomainJoin.ps1\\DomainJoin",
+          "Properties": {
+            "Domain": "[variables('DomainData').FQDN]",
+            "LocalAccount": {
+              "UserName": "[parameters('localAdminUserName')]",
+              "Password": "PrivateSettingsRef:localPassword"
+            },
+            "DomainAccount": {
+              "UserName": "[parameters('domainJoinUserName')]",
+              "Password": "PrivateSettingsRef:DomainPassword"
+            },
+            "LocalAdmins": "[parameters('localAdmins')]",
+            "SQLAdmins": "[parameters('SQLAdmins')]",
+            "OU": "[variables('DomainData').OUPath]",
+            "scriptFolderUrl": "[variables('scriptsURL')]",
+            "sastoken": "[parameters('armTemplatesSasToken')]"
+          }
+        },
+        "protectedSettings": {
+          "Items": {
+            "LocalPassword": "[parameters('localAdminPassword')]",
+            "DomainPassword": "[parameters('domainJoinPassword')]"
+          }
+        }
+      }
+    }
+  ]
+}

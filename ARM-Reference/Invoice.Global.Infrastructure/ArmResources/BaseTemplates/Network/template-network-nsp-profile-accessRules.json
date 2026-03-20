@@ -1,0 +1,54 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "nspName": {
+      "type": "string"
+    },
+    "nspProfileName": {
+      "type": "string"
+    },
+    "addressPrefixesRulesName": {
+      "type": "array",
+      "metadata": {
+        "description": "Array of rules to be created",
+        "sample":[
+          {
+            "ruleName": "rule1",
+            "direction": "Inbound",
+            "addressPrefixes": "*",
+            "fullyQualifiedDomainNames": "*"
+          },
+          {
+            "ruleName": "rule2",
+            "direction": "Outbound",
+            "addressPrefixes": "1.1.1.1,2.2.2.2",
+            "fullyQualifiedDomainNames": "microsoft.com"
+          }
+        ]
+      }
+    },
+    "lengthComparison": {
+      "type": "int",
+      "defaultValue": 0
+    }
+  },
+  "resources": [
+    {
+      "apiVersion": "2024-06-01-preview",
+      "name": "[format('{0}/{1}/{2}', parameters('nspName'), parameters('nspProfileName'), parameters('addressPrefixesRulesName')[copyIndex()].ruleName)]",
+      "type": "Microsoft.Network/networkSecurityPerimeters/profiles/accessRules",
+      "dependsOn": [],
+      "properties": {
+        "direction": "[parameters('addressPrefixesRulesName')[copyIndex()].direction]",
+        "addressPrefixes": "[if(greater(length(parameters('addressPrefixesRulesName')[copyIndex()].addressPrefixes), parameters('lengthComparison')), split(parameters('addressPrefixesRulesName')[copyIndex()].addressPrefixes, ','), json('[]'))]",
+        "fullyQualifiedDomainNames":"[if(greater(length(parameters('addressPrefixesRulesName')[copyIndex()].fullyQualifiedDomainNames), parameters('lengthComparison')), split(parameters('addressPrefixesRulesName')[copyIndex()].fullyQualifiedDomainNames, ','), json('[]'))]"
+      },
+      "copy": {
+        "name": "createRulesLoop",
+        "count": "[length(parameters('addressPrefixesRulesName'))]"
+      }
+    }
+  ],
+  "outputs": {}
+}

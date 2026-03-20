@@ -1,0 +1,68 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "vmName": {
+      "type": "string",
+      "minLength": 3,
+      "metadata": {
+        "description": "Name for the Virtual Machine."
+      }
+    },
+    "vmRegion": {
+      "minLength": 3,
+      "type": "String",
+      "defaultValue": "[resourceGroup().location]",
+      "allowedValues": [
+        "[resourceGroup().location]",
+        "eastus",
+        "eastus2",
+        "centralus",
+        "northcentralus",
+        "southcentralus",
+        "southeastasia",
+        "westcentralus",
+        "westeurope",
+        "northeurope",
+        "westus",
+        "westus2"
+      ],
+      "metadata": {
+        "description": ""
+      }
+    },
+    "certificateUriList": {
+      "type": "array",
+      "metadata": {
+        "description": "List of kv Urls certificates to be installed automatically in the nodes by the KVVM extension"
+      }
+    }
+  },
+  "variables": {
+    "vmExtensionName": "KVVMExtensionForWindows"
+  },
+  "resources": [
+    {
+      "apiVersion": "2019-07-01",
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "name": "[concat(parameters('vmName'),'/', variables('vmExtensionName'))]",
+      "location": "[parameters('vmRegion')]",
+      "properties": {
+        "publisher": "Microsoft.Azure.KeyVault",
+        "type": "KeyVaultForWindows",
+        "typeHandlerVersion": "1.0",
+        "autoUpgradeMinorVersion": true,
+        "settings": {
+          "secretsManagementSettings": {
+            "pollingIntervalInS": "3600",
+            "certificateStoreName": "MY",
+            "linkOnRenewal": false,
+            "certificateStoreLocation": "LocalMachine",
+            "requireInitialSync": true,
+            "observedCertificates": "[parameters('certificateUriList')]"
+          }
+        }
+      }
+    }
+  ]
+}

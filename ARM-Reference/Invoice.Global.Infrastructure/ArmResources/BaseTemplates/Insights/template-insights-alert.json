@@ -1,0 +1,52 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "alertDetails": {
+      "type": "array"
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]"
+    }
+  },
+  "variables": {
+  },
+  "resources": [
+    {
+      "condition":"[parameters('alertDetails')[copyIndex()].isCreate]",
+      "name": "[parameters('alertDetails')[copyIndex()].name]",
+      "type": "microsoft.insights/scheduledqueryrules",
+      "location": "[parameters('location')]",
+      "apiVersion": "2020-05-01-preview",
+      "copy": {
+        "name": "AddNewAlertLoop",
+        "count": "[length(parameters('alertDetails'))]"
+      },
+      "dependsOn": [
+      ],
+      "properties": {
+        "displayName": "[parameters('alertDetails')[copyIndex()].name]",
+        "description": "[parameters('alertDetails')[copyIndex()].description]",
+        "severity": "[parameters('alertDetails')[copyIndex()].severity]",
+        "enabled": "[parameters('alertDetails')[copyIndex()].enabled]",
+        "evaluationFrequency": "[parameters('alertDetails')[copyIndex()].evaluationFrequency]",
+        "scopes": [
+          "[parameters('alertDetails')[copyIndex()].resourceIdScope]"
+        ],
+        "windowSize": "[parameters('alertDetails')[copyIndex()].windowSize]",
+        "criteria": {
+          "allOf": "[parameters('alertDetails')[copyIndex()].criteriaDetails]"
+        },
+        "muteActionsDuration": "[parameters('alertDetails')[copyIndex()].muteActionsDuration]",
+        "actions": [
+          {
+            "actionGroupId": "[parameters('alertDetails')[copyIndex()].actionGroupId]"
+          }
+        ]
+      }
+    }
+  ],
+  "outputs": {
+  }
+}

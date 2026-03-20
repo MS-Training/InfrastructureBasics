@@ -1,0 +1,365 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "settings": {
+      "type": "secureObject",
+      "metadata": {
+        "description": "This is coming from the parameter File under Parameters"
+      }
+    },
+    "resourceNames": {
+      "type": "Object",
+      "metadata": {
+        "description": "This is coming from the parameter File under Parameters"
+      }
+    },
+    "date": {
+      "type": "string",
+      "defaultValue": "[utcNow()]"
+    }
+  },
+  "variables": {
+    "keyVaultName": "[tolower(concat(parameters('resourceNames').KeyVaultBaseName,parameters('settings').common.tag))]",
+    "primaryAzureSqlServerName": "[tolower(concat(parameters('resourceNames').baseName,parameters('settings').common.primaryEnvAbbreviation,'sqlsvr',parameters('settings').data.tag))]",
+    "primaryAzureSqlServerResourceGroupName": "[toUpper(concat('RG-',parameters('settings').common.applicationId,'-',parameters('resourceNames').baseName,'-',parameters('settings').common.primaryEnvAbbreviation,'-',parameters('settings').data.tag))]",
+    "azureSqlServerName": "[concat(parameters('resourceNames').azureSqlServeBaseName,parameters('settings').data.tag)]",
+    "partnerFailoverServers": [
+      {
+        "id": "[concat('/subscriptions/',subscription().subscriptionId,'/resourceGroups/',resourceGroup().name, '/providers/Microsoft.Sql/servers/',variables('azureSqlServerName'))]"
+      }
+    ],
+    "sqlFirewallRules": [
+      {
+        "Comment": "This Firewall rule will enable Allow Azure services and resources to access ADW",
+        "Name": "AllowAllWindowsAzureIps",
+        "StartIPAddress": "0.0.0.0",
+        "EndIPAddress": "0.0.0.0"
+      },
+      {
+        "Name": "Corp to Internet Edge - Redmond - 131.107.132.16",
+        "StartIPAddress": "131.107.132.16",
+        "EndIPAddress": "131.107.132.31"
+      },
+      {
+        "Name": "Corp to Internet Edge - Redmond - 131.107.132.32",
+        "StartIPAddress": "131.107.132.32",
+        "EndIPAddress": "131.107.132.63"
+      },
+      {
+        "Name": "Corp to Internet Edge - Redmond - 131.107.147.0",
+        "StartIPAddress": "131.107.147.0",
+        "EndIPAddress": "131.107.147.255"
+      },
+      {
+        "Name": "Corp to Internet Edge - Redmond - 131.107.159.0",
+        "StartIPAddress": "131.107.159.0",
+        "EndIPAddress": "131.107.159.255"
+      },
+      {
+        "Name": "Corp to Internet Edge - Redmond - 131.107.160.0",
+        "StartIPAddress": "131.107.160.0",
+        "EndIPAddress": "131.107.160.255"
+      },
+      {
+        "Name": "Corp to Internet Edge - Redmond - 131.107.174.0",
+        "StartIPAddress": "131.107.174.0",
+        "EndIPAddress": "131.107.174.255"
+      },
+      {
+        "Name": "Corp to Internet Edge - Redmond - 167.220.0.0",
+        "StartIPAddress": "167.220.0.0",
+        "EndIPAddress": "167.220.1.255"
+      },
+      {
+        "Name": "Corp to Internet Edge - Redmond - 167.220.2.0",
+        "StartIPAddress": "167.220.2.0",
+        "EndIPAddress": "167.220.2.255"
+      },
+      {
+        "Name": "Corp to Internet Edge - Bristow - 167.220.148.0",
+        "StartIPAddress": "167.220.148.0",
+        "EndIPAddress": "167.220.149.255"
+      },
+      {
+        "Name": "Corp to Internet Edge - Santa Clara - 167.220.24.0",
+        "StartIPAddress": "167.220.24.0",
+        "EndIPAddress": "167.220.24.255"
+      },
+      {
+        "Name": "Corp to Internet Edge - Santa Clara - 167.220.26.0",
+        "StartIPAddress": "167.220.26.0",
+        "EndIPAddress": "167.220.26.255"
+      },
+      {
+        "Name": "Corp to Internet Edge - Hyderabad - 167.220.238.0",
+        "StartIPAddress": "167.220.238.0",
+        "EndIPAddress": "167.220.238.31"
+      },
+      {
+        "Name": "Corp to Internet Edge - Hyderabad - 167.220.238.128",
+        "StartIPAddress": "167.220.238.128",
+        "EndIPAddress": "167.220.238.159"
+      },
+      {
+        "Name": "Corp to Internet Edge - Hyderabad - 167.220.238.192",
+        "StartIPAddress": "167.220.238.192",
+        "EndIPAddress": "167.220.238.223"
+      },
+      {
+        "Name": "Corp to Internet Edge - Hyderabad - 167.220.238.64",
+        "StartIPAddress": "167.220.238.64",
+        "EndIPAddress": "167.220.238.95"
+      },
+      {
+        "Name": "Corp to Internet Edge - Tokyo - 167.220.232.0",
+        "StartIPAddress": "167.220.232.0",
+        "EndIPAddress": "167.220.233.255"
+      },
+      {
+        "Name": "Corp to Internet Edge - Singapore - 167.220.255.0",
+        "StartIPAddress": "167.220.255.0",
+        "EndIPAddress": "167.220.255.127"
+      },
+      {
+        "Name": "Corp to Internet Edge - Sydney - 167.220.242.0",
+        "StartIPAddress": "167.220.242.0",
+        "EndIPAddress": "167.220.242.127"
+      },
+      {
+        "Name": "Corp to Internet Edge - Sydney - 167.220.242.128",
+        "StartIPAddress": "167.220.242.128",
+        "EndIPAddress": "167.220.242.157"
+      },
+      {
+        "Name": "Corp to Internet Edge - Sydney - 167.220.242.192",
+        "StartIPAddress": "167.220.242.192",
+        "EndIPAddress": "167.220.242.223"
+      },
+      {
+        "Name": "Corp to Internet Edge - Sydney - 167.220.242.64",
+        "StartIPAddress": "167.220.242.64",
+        "EndIPAddress": "167.220.242.95"
+      },
+      {
+        "Name": "Corp to Internet Edge - Dublin - 94.245.87.0",
+        "StartIPAddress": "94.245.87.0",
+        "EndIPAddress": "94.245.87.255"
+      },
+      {
+        "Name": "Corp to Internet Edge - London - 167.220.196.0",
+        "StartIPAddress": "167.220.196.0",
+        "EndIPAddress": "167.220.197.255"
+      },
+      {
+        "Name": "Corp to Internet Edge - Tallinn - 194.69.104.0",
+        "StartIPAddress": "194.69.104.0",
+        "EndIPAddress": "194.69.104.127"
+      },
+      {
+        "Name": "Corp to Internet Edge - Sao Paulo - 191.234.97.0",
+        "StartIPAddress": "191.234.97.0",
+        "EndIPAddress": "191.234.97.63"
+      },
+      {
+        "Name": "Corp to Internet Edge - Bangalore - 167.220.226.0",
+        "StartIPAddress": "167.220.226.0",
+        "EndIPAddress": "167.220.227.255"
+      },
+      {
+        "Name": "Corp to Internet Edge - Cheyenne - 157.58.212.64",
+        "StartIPAddress": "157.58.212.64",
+        "EndIPAddress": "157.58.212.127"
+      },
+      {
+        "Name": "Corp to Internet Edge - Cheyenne - 157.58.212.128",
+        "StartIPAddress": "157.58.212.128",
+        "EndIPAddress": "157.58.212.191"
+      },
+      {
+        "Name": "Corp to Internet Edge - Cheyenne - 157.58.213.64",
+        "StartIPAddress": "157.58.213.64",
+        "EndIPAddress": "157.58.213.127"
+      },
+      {
+        "Name": "Corp to Internet Edge - Cheyenne - 157.58.213.192",
+        "StartIPAddress": "157.58.213.192",
+        "EndIPAddress": "157.58.213.255"
+      },
+      {
+        "Name": "Corp to Internet Edge - Cheyenne - 157.58.214.128",
+        "StartIPAddress": "157.58.214.128",
+        "EndIPAddress": "157.58.214.191"
+      },
+      {
+        "Name": "Corp to Internet Edge - Cheyenne - 157.58.214.192",
+        "StartIPAddress": "157.58.214.192",
+        "EndIPAddress": "157.58.214.255"
+      },
+      {
+        "Name": "Corp to Internet Edge - Quincy - 167.220.70.64",
+        "StartIPAddress": "167.220.70.64",
+        "EndIPAddress": "167.220.70.127"
+      },
+      {
+        "Name": "Corp to Internet Edge - Quincy - 167.220.76.192",
+        "StartIPAddress": "167.220.76.192",
+        "EndIPAddress": "167.220.76.255"
+      },
+      {
+        "Name": "Corp to Internet Edge - Quincy - 167.220.77.64",
+        "StartIPAddress": "167.220.77.64",
+        "EndIPAddress": "167.220.77.127"
+      },
+      {
+        "Name": "Corp to Internet Edge - Quincy - 167.220.80.192",
+        "StartIPAddress": "167.220.80.192",
+        "EndIPAddress": "167.220.80.255"
+      },
+      {
+        "Name": "Corp to Internet Edge - Quincy - 167.220.81.128",
+        "StartIPAddress": "167.220.81.128",
+        "EndIPAddress": "167.220.81.191"
+      },
+      {
+        "Name": "Corp to Internet Edge - Quincy - 167.220.81.192",
+        "StartIPAddress": "167.220.81.192",
+        "EndIPAddress": "167.220.81.255"
+      },
+      {
+        "Name": "Corp to Internet Edge - Redmond - 131.107.1.128",
+        "StartIPAddress": "131.107.1.128",
+        "EndIPAddress": "131.107.1.255"
+      },
+      {
+        "Name": "Corp to Internet Edge - Redmond - 131.107.8.0",
+        "StartIPAddress": "131.107.8.0",
+        "EndIPAddress": "131.107.8.127"
+      },
+      {
+        "Name": "Corp to Internet Edge - Herzliya - 167.220.204.128",
+        "StartIPAddress": "167.220.204.128",
+        "EndIPAddress": "167.220.204.191"
+      },
+      {
+        "Name": "Corp to Internet Edge - Herzliya - 167.220.204.192",
+        "StartIPAddress": "167.220.204.192",
+        "EndIPAddress": "167.220.204.255"
+      },
+      {
+        "Name": "Corp to Internet Edge - Herzliya - 167.220.205.0",
+        "StartIPAddress": "167.220.205.0",
+        "EndIPAddress": "167.220.205.63"
+      },
+      {
+        "Name": "Corp to Internet Edge - Herzliya - 167.220.205.64",
+        "StartIPAddress": "167.220.205.64",
+        "EndIPAddress": "167.220.205.127"
+      },
+      {
+        "Name": "Express Route - Quincy (West US 2) - 104.44.112.128",
+        "StartIPAddress": "104.44.112.128",
+        "EndIPAddress": "104.44.112.255"
+      },
+      {
+        "Name": "Express Route - Quincy (West US 2) - 157.58.30.128",
+        "StartIPAddress": "157.58.30.128",
+        "EndIPAddress": "157.58.30.255"
+      },
+      {
+        "Name": "SAW",
+        "StartIPAddress": "207.68.190.32",
+        "EndIPAddress": "207.68.190.64"
+      },
+      {
+        "Name": "SAW1",
+        "StartIPAddress": "157.58.216.64",
+        "EndIPAddress": "157.58.216.128"
+      },
+      {
+        "Name": "SAW-ASIA",
+        "StartIPAddress": "13.106.4.96",
+        "EndIPAddress": "13.106.4.128"
+      },
+      {
+        "Name": "SAW-ASIA2",
+        "StartIPAddress": "167.220.249.128",
+        "EndIPAddress": "167.220.249.192"
+      }
+    ]
+  },
+  "resources": [
+    {
+      "name": "[take(concat('deployAzureSqlSrv-',parameters('date')),60)]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').dataStoresResourceGroupName]",
+      "apiVersion": "2022-09-01",
+      "dependsOn": [
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'template-azure-sql-network-integrated', '/versions/v1')]"
+        },
+        "parameters": { 
+          "templatespecsBaseResourceId": {
+            "value": "[parameters('resourceNames').templatespecsBaseResourceId]"
+          },
+          "azureSqlServerName": {
+            "value": "[variables('azureSqlServerName')]"
+          },
+          "primarySqlServerName": {
+            "value": "[variables('primaryAzureSqlServerName')]"
+          },
+          "primarySqlServerResourceGroupName": {
+            "value": "[variables('primaryAzureSqlServerResourceGroupName')]"
+          },
+          "partnerFailoverServers": {
+            "value": "[variables('partnerFailoverServers')]"
+          },
+          "location": {
+            "value": "[parameters('settings').common.region]"
+          },
+          "keyvaultName": {
+            "value": "[variables('keyvaultName')]"
+          },
+          "keyvaultResourceGroupName": {
+            "value": "[parameters('resourceNames').commonResourceGroupName]"
+          },
+          "virtualNetworkName": {
+            "value": "[concat(parameters('resourceNames').vnetBaseName, toLower(parameters('settings').commonNetwork.tag))]"
+          },
+          "networkResourceGroupName": {
+            "value": "[parameters('resourceNames').commonNetworkResourceGroupName]"
+          },
+          "virtualNetworkSubnetName": {
+            "value": "[parameters('settings').commonNetwork.subnets[3].subnetName]"
+          },
+          "activeDirectoryAdminName": {
+            "value": "[parameters('settings').data.azureSQL.activeDirectoryAdminName]"
+          },
+          "activeDirectoryAdminObjectID": {
+            "value": "[parameters('settings').data.azureSQL.activeDirectoryAdminObjectID]"
+          },
+          "diagnosysStorageAccountName": {
+            "value": "[parameters('resourceNames').diagnosysStorageAccountName]"
+          },
+          "userAssignedIdentityResourceId": {
+            "value": "[parameters('resourceNames').commonManagedIdentityResourceId]"
+          },
+          "setSQLAdminPassword": {
+            "value": "[parameters('settings').data.azureSQL.setSQLAdminPassword]"
+          },
+          "sqlFirewallRules": {
+            "value": "[variables('sqlFirewallRules')]"
+          },
+          "isPrimaryRegion": {
+            "value": "[parameters('settings').common.isPrimaryRegion]"
+          }
+        }
+      }
+    }
+  ],
+  "outputs": {
+  }
+}

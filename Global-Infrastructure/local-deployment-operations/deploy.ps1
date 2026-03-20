@@ -14,7 +14,7 @@ az bicep build --file .\deploy.bicep
 
 Clear-Host
 
-Connect-AzAccount
+Connect-AzAccount    
 
 #get the execution path of this current script
 #$Directorypath = $PSScriptRoot

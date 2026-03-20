@@ -1,0 +1,205 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "clusterName": {
+      "type": "string",
+      "defaultValue": "Cluster",
+      "metadata": {
+        "description": "Name of your cluster - Between 3 and 23 characters. Letters and numbers only"
+      }
+    },
+    "clusterManagementIpFQDN": {
+      "type": "string",
+      "metadata": {
+        "description": "the FQDN of the IP that will be used for management of the cluster"
+      }
+    },
+    "clusterCodeVersion": {
+      "type": "string",
+      "defaultValue": "10.1.2941.9590",
+      "metadata": {
+        "description": "The Service Fabric Runtime version"
+      }
+    },
+    "clusterUpgradeMode": {
+      "type": "string",
+      "defaultValue": "Manual",
+      "metadata": {
+        "description": "The upgrade mode for the cluster"
+      }
+    },
+    "clusterReliabilityLevel": {
+      "type": "string",
+      "defaultValue": "Bronze",
+      "metadata": {
+        "description": "The Reliability level for the cluster"
+      }
+    },
+    "clusterProtectionLevel": {
+      "type": "string",
+      "allowedValues": [
+        "None",
+        "Sign",
+        "EncryptAndSign"
+      ],
+      "defaultValue": "EncryptAndSign",
+      "metadata": {
+        "description": "Protection level.Three values are allowed - EncryptAndSign, Sign, None. It is best to keep the default of EncryptAndSign, unless you have a need not to"
+      }
+    },
+    "nodeTypesConfig": {
+      "type": "array",
+      "metadata": {
+        "description": "Instance count for node type"
+      }
+    },
+    "aadTenantId": {
+      "type": "string",
+      "metadata": {
+        "description": "Azure Active Directory Tenant ID"
+      }
+    },
+    "aadClusterApplicationId": {
+      "type": "string",
+      "metadata": {
+        "description": "Azure Active Directory Application ID"
+      }
+    },
+    "aadClientApplicationId": {
+      "type": "string",
+      "metadata": {
+        "description": "Azure Active Directory Client Application ID"
+      }
+    },
+    "clusterCertificateCommonName": {
+      "type": "string",
+      "metadata": {
+        "description": "cluster certificate's common name that used by the SF to load cluster certificate"
+      }
+    }
+  },
+  "variables": {
+    "fabricHttpGatewayPort": "19080"
+  },
+  "resources": [
+    {
+      "apiVersion": "2021-06-01",
+      "type": "Microsoft.ServiceFabric/clusters",
+      "name": "[parameters('clusterName')]",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [],
+      "properties": {
+        "certificateCommonNames": {
+          "commonNames": [
+            {
+              "certificateCommonName": "[parameters('clusterCertificateCommonName')]",
+              "certificateIssuerThumbprint": "3ec910ed6a2288ad518e672093e0a0fbf249ffce,413e8aac6049924b178ba636cbaf3963ccb963cd"
+            }
+          ]
+        },
+        "azureActiveDirectory": {
+          "tenantId": "[parameters('aadTenantId')]",
+          "clusterApplication": "[parameters('aadClusterApplicationId')]",
+          "clientApplication": "[parameters('aadClientApplicationId')]"
+        },
+        "eventStoreServiceEnabled": false,
+        "clientCertificateCommonNames": [],
+        "clientCertificateThumbprints": [],
+        "clusterCodeVersion": "[parameters('clusterCodeVersion')]",
+        "clusterState": "Default",
+        "fabricSettings": [
+          {
+            "name": "Security",
+            "parameters": [
+              {
+                "name": "EnforcePrevalidationOnSecurityChanges",
+                "value": "false"
+              },
+              {
+                "name": "EnableExtendedCertificateValidation",
+                "value": "true"
+              },
+              {
+                "name": "ClusterProtectionLevel",
+                "value": "[parameters('clusterProtectionLevel')]"
+              }
+            ]
+          },
+          {
+            "name": "Security/ClusterCertificateIssuerStores",
+            "parameters": [
+              {
+                "name": "cus.cluster.davsftsttp2cn.system.servicefabric.azure-int",
+                "value": "Microsoft_Internally_Trusted_Certificate_Authorities"
+              }
+            ]
+          },
+          {
+            "name": "Security/ServerCertificateIssuerStores",
+            "parameters": [
+              {
+                "name": "cus.cluster.davsftsttp2cn.system.servicefabric.azure-int",
+                "value": "Microsoft_Internally_Trusted_Certificate_Authorities"
+              }
+            ]
+          },
+          {
+            "name": "Security/ClientCertificateIssuerStores",
+            "parameters": [
+              {
+                "name": "cus.cluster.davsftsttp2cn.system.servicefabric.azure-int",
+                "value": "Microsoft_Internally_Trusted_Certificate_Authorities"
+              }
+            ]
+          },
+          {
+            "name": "ClusterManager",
+            "parameters": [
+              {
+                "name": "EnableDefaultServicesUpgrade",
+                "value": "true"
+              }
+            ]
+          },
+          {
+            "name": "Diagnostics",
+            "parameters": [
+              {
+                "name": "MaxDiskQuotaInMB",
+                "value": "4096"
+              }
+            ]
+          },
+          {
+            "name": "KtlLogger",
+            "parameters": [
+              {
+                "name": "SharedLogSizeInMB",
+                "value": "4096"
+              }
+            ]
+          }
+        ],
+        "addonFeatures": [ "RepairManager" ],
+        "managementEndpoint": "[concat('https://',parameters('clusterManagementIpFQDN'),':',variables('fabricHttpGatewayPort'))]",
+        "nodeTypes": "[parameters('nodeTypesConfig')]",
+        "provisioningState": "Default",
+        "reliabilityLevel": "[parameters('clusterReliabilityLevel')]",
+        "upgradeMode": "[parameters('clusterUpgradeMode')]",
+        "vmImage": "Windows"
+      },
+      "tags": {}
+    }
+  ],
+  "outputs": {
+    "clusterProperties": {
+      "value": "[reference(parameters('clusterName'))]",
+      "type": "object"
+    },
+    "clusterEndpoint": {
+      "type": "string",
+      "value": "[reference(parameters('clusterName')).clusterEndpoint]"
+    }
+  }
+}

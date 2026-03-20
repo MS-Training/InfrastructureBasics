@@ -1,0 +1,163 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "artifactsSaBaseUri": {
+      "type": "string"
+    },
+    "artifactsSaSasToken": {
+      "type": "securestring"
+    },
+    "timeZone": {
+      "type": "string",
+      "defaultValue": "\"Pacific Standard Time\""
+    },
+    "vmName": {
+      "type": "string",
+      "minLength": 3,
+      "metadata": {
+        "description": "Name for the Virtual Machine."
+      }
+    },
+    "vmResourceGroupName": {
+      "type": "string"
+    },
+    "vmRegion": {
+      "minLength": 3,
+      "type": "String",
+      "defaultValue": "[resourceGroup().location]",
+      "allowedValues": [
+        "[resourceGroup().location]",
+        "eastus",
+        "eastus2",
+        "centralus",
+        "northcentralus",
+        "southcentralus",
+        "southeastasia",
+        "westcentralus",
+        "westeurope",
+        "northeurope",
+        "westus",
+        "westus2"
+      ],
+      "metadata": {
+        "description": ""
+      }
+    },
+    "workspaceId": {
+      "type": "securestring",
+      "defaultValue": "NA",
+      "metadata": {
+        "description": "WorkspaceId"
+      }
+    },
+    "workspaceKey": {
+      "type": "securestring",
+      "defaultValue": "NA",
+      "metadata": {
+        "description": "WorkspaceKey"
+      }
+    },
+    "cseoAutomationDSCServerUrl": {
+      "type": "string"
+    },
+    "cseoAutomationDSCRegistrationKey": {
+      "type": "securestring"
+    },
+    "isCluster": {
+      "type": "bool",
+      "defaultValue": false
+    },
+    "clusterRoleName": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "lblName": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "resourceNames": {
+      "type": "Object",
+      "metadata": {
+        "description": "This is coming from the parameter File under Parameters"
+      }
+    }
+  },
+  "variables": {
+    "listOfScripts": [
+      {
+        "powershellFileName": "LinkLogAnalytisWorkSpace.ps1",
+        "powershellParameters": "[concat('-WorkspaceId ',parameters('workspaceId'),' -WorkspaceKey ',parameters('workspaceKey'))]",
+        "isExecute": true
+      },
+      {
+        "powershellFileName": "BaseVirtualMachineConfiguration.ps1",
+        "powershellParameters": "[concat('-Verbose -timeZone ', parameters('timeZone'))]",
+        "isExecute": true
+      }
+    ]
+  },
+  "resources": [
+    {
+      "name": "[concat(parameters('vmName'),'-ExecuteMultipleScripts')]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('vmResourceGroupName')]",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'factory-powershell-executer', '/versions/v1')]"
+        },
+        "parameters": { 
+          "templatespecsBaseResourceId": {
+            "value": "[parameters('resourceNames').templatespecsBaseResourceId]"
+          },
+          "vmName": {
+            "value": "[parameters('vmName')]"
+          },
+          "vmRegion": {
+            "value": "[parameters('vmRegion')]"
+          },
+          "listOfScripts": {
+            "value": "[variables('listOfScripts')]"
+          },
+          "resourceNames": {
+            "value": "[parameters('resourceNames')]"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[and(parameters('isCluster'),endsWith(parameters('vmName'),'1'))]",
+      "name": "[concat(parameters('vmName'),'-RestoreCluster')]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('vmResourceGroupName')]",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+        "[concat(parameters('vmName'),'-ExecuteMultipleScripts')]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'VMExtensions-template-vm-extension-ps-script', '/versions/v1')]"
+        },
+        "parameters": {
+          "vmName": {
+            "value": "[parameters('vmName')]"
+          },
+          "powershellFileName": {
+            "value": "SetClusterIPResources.ps1"
+          },
+          "powershellParameters": {
+            "value": "[if(parameters('isCluster'),concat('-ClusterRoleName ',parameters('clusterRoleName'),' -ILBStaticIP ', '\"', reference(concat(resourceGroup().id,'/providers/','Microsoft.Network/loadBalancers/', parameters('lblName'), '/frontendIPConfigurations/LoadBalancerFrontEnd'),'2020-05-01').privateIPAddress, '\"'),'')]"
+          },
+          "powershellFileBlobUrl": {
+            "value": "[concat(parameters('artifactsSaBaseUri'),parameters('resourceNames').scriptsTemplatePath, '-', 'SetClusterIPResources.ps1', parameters('artifactsSaSasToken'))]"
+          }
+        }
+      }
+    }
+  ]
+}

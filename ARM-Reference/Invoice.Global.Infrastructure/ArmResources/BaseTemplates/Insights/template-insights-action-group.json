@@ -1,0 +1,39 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "actionGroupDetails": {
+      "type": "array"
+    }
+  },
+  "variables": {
+  },
+  "resources": [
+    {
+      "name": "[parameters('actionGroupDetails')[copyIndex()].name]",
+      "type": "microsoft.insights/actionGroups",
+      "location": "Global",
+      "apiVersion": "2019-06-01",
+      "copy": {
+        "name": "AddNewActionGroupLoop",
+        "count": "[length(parameters('actionGroupDetails'))]"
+      },
+      "properties": {
+        "groupShortName": "[parameters('actionGroupDetails')[copyIndex()].name]",
+        "enabled": true,
+        "emailReceivers": "[parameters('actionGroupDetails')[copyIndex()].emailReceivers]",
+        "smsReceivers": [],
+        "webhookReceivers": [],
+        "itsmReceivers": [],
+        "azureAppPushReceivers": [],
+        "automationRunbookReceivers": [],
+        "voiceReceivers": [],
+        "logicAppReceivers": [],
+        "azureFunctionReceivers": [],
+        "armRoleReceivers": []
+      }
+    }
+  ],
+  "outputs": {
+  }
+}

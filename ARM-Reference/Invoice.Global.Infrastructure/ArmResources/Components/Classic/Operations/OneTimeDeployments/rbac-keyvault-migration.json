@@ -1,0 +1,183 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "resourceNames": {
+      "type": "Object",
+      "metadata": {
+        "description": "This is coming from the parameter File under Parameters"
+      }
+    }
+  },
+  "variables": {
+    "deploymentFlags": {
+      "isNewEnvironment": false,
+      "deploySecrets": false,
+      "setAppKeyVaultPermissions": true
+    },
+    "settingsDEV": {
+      "secretManager": {
+        "keyvaultSecretUserRoleDefinitionObjectId": "4633458b-17de-408a-b874-0445c86b69e6",
+        "secrets": {
+          "secretList": []
+        },
+        "permissions": {
+          "accountList": [
+            {
+              "accountName": "INVRIISDEV1",
+              "roleDefinitionObjectId": "4633458b-17de-408a-b874-0445c86b69e6",
+              "objectId": "4e9abd36-caa8-45d8-bbe6-b542ce7fb5d4"
+            }
+          ]
+        }
+      }
+    },
+    "settingsPPE": {
+      "secretManager": {
+        "keyvaultSecretUserRoleDefinitionObjectId": "4633458b-17de-408a-b874-0445c86b69e6",
+        "secrets": {
+          "secretList": []
+        },
+        "permissions": {
+          "accountList": [
+            {
+              "accountName": "INVRIISPPE1",
+              "roleDefinitionObjectId": "4633458b-17de-408a-b874-0445c86b69e6",
+              "objectId": "3f4e39e2-26f2-4d6c-a060-fca9bad6dcab"
+            },
+            {
+              "accountName": "INVRIISPPE2",
+              "roleDefinitionObjectId": "4633458b-17de-408a-b874-0445c86b69e6",
+              "objectId": "0ca99ed7-91ca-45b7-8f70-78ee3dc180c4"
+            }
+          ]
+        }
+      }
+    },
+    "settingsPRD": {
+      "secretManager": {
+        "keyvaultSecretUserRoleDefinitionObjectId": "4633458b-17de-408a-b874-0445c86b69e6",
+        "secrets": {
+          "secretList": []
+        },
+        "permissions": {
+          "accountList": [
+            {
+              "accountName": "INVRIIS2PRD1",
+              "roleDefinitionObjectId": "4633458b-17de-408a-b874-0445c86b69e6",
+              "objectId": "c9b18cb9-e534-460b-83ec-06d52cf36b57"
+            },
+            {
+              "accountName": "INVRIISPRD1",
+              "roleDefinitionObjectId": "4633458b-17de-408a-b874-0445c86b69e6",
+              "objectId": "d6fc4586-8c72-4957-b0f7-2c45ea0c8f0a"
+            },
+            {
+              "accountName": "INVRIISPRD2",
+              "roleDefinitionObjectId": "4633458b-17de-408a-b874-0445c86b69e6",
+              "objectId": "9697490f-2b34-41d8-a369-97539edc313e"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "resources": [
+    {
+      "condition": "[equals(toupper(parameters('resourceNames').environment),'DEV')]",
+      "name": "[take(concat('DeploySecretsDev-',deployment().name),60)]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonResourceGroupName]",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'secret-manager', '/versions/v1')]"
+        },
+        "parameters": { 
+          "templatespecsBaseResourceId": {
+            "value": "[parameters('resourceNames').templatespecsBaseResourceId]"
+          },
+          "deploymentFlags": {
+            "value": "[variables('deploymentFlags')]"
+          },
+          "setRBACKevaultPermissions": {
+            "value": true
+          },
+          "settings": {
+            "value": "[variables('settingsDEV')]"
+          },
+          "resourceNames": {
+            "value": "[parameters('resourceNames')]"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[equals(toupper(parameters('resourceNames').environment),'PPE')]",
+      "name": "[take(concat('DeploySecretsPPE-',deployment().name),60)]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonResourceGroupName]",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'secret-manager', '/versions/v1')]"
+        },
+        "parameters": { 
+          "templatespecsBaseResourceId": {
+            "value": "[parameters('resourceNames').templatespecsBaseResourceId]"
+          },
+          "deploymentFlags": {
+            "value": "[variables('deploymentFlags')]"
+          },
+          "setRBACKevaultPermissions": {
+            "value": true
+          },
+          "settings": {
+            "value": "[variables('settingsPPE')]"
+          },
+          "resourceNames": {
+            "value": "[parameters('resourceNames')]"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[equals(toupper(parameters('resourceNames').environment),'PRD')]",
+      "name": "[take(concat('DeploySecrets-',deployment().name),60)]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonResourceGroupName]",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'secret-manager', '/versions/v1')]"
+        },
+        "parameters": { 
+          "templatespecsBaseResourceId": {
+            "value": "[parameters('resourceNames').templatespecsBaseResourceId]"
+          },
+          "deploymentFlags": {
+            "value": "[variables('deploymentFlags')]"
+          },
+          "setRBACKevaultPermissions": {
+            "value": true
+          },
+          "settings": {
+            "value": "[variables('settingsPRD')]"
+          },
+          "resourceNames": {
+            "value": "[parameters('resourceNames')]"
+          }
+        }
+      }
+    }
+  ]
+}

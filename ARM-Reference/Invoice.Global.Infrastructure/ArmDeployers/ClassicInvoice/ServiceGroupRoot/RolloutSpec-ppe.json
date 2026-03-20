@@ -1,0 +1,24 @@
+﻿{
+  "$schema": "https://ev2schema.azure.net/schemas/2020-01-01/rolloutSpecification.json",
+  "rolloutMetadata": {
+    "serviceModelPath": "ServiceModel.json",
+    "scopeBindingsPath": "ScopeBindings.json",
+    "name": "ClassicInvoice 1.0.1",
+    "rolloutType": "Major",
+    "buildSource": {
+      "parameters": {
+        "versionFile": "buildver.txt"
+      }
+    }
+  },
+  "orchestratedsteps": [
+    {
+      "name": "DeployClassicInvoice",
+      "targetType": "ServiceResource",
+      "targetName": "ClassicInvoicePpeResources",
+      "actions": [
+        "Deploy"
+      ]
+    }
+  ]
+}

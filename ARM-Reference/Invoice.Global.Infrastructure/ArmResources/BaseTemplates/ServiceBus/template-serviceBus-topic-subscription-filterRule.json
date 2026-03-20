@@ -1,0 +1,55 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "serviceBusNamespace": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the Service Bus namespace"
+      }
+    },
+    "serviceBusTopicName": {
+      "type": "string",
+      "metadata": {
+        "description": "Topic Name"
+      }
+    },
+    "serviceBusTopicSubscriptionName": {
+      "type": "string",
+      "metadata": {
+        "description": "Subscription Name"
+      }
+    },
+    "serviceBusTopicSubscriptionFilterRuleName": {
+      "type": "string",
+      "metadata": {
+        "description": "Subscription Name"
+      }
+    },
+    "topicSubscriptionFilterRuleProperties": {
+      "type": "object",
+      "metadata": {
+        "description": {
+          "comments": "The properties needed to create the filter rule",
+          "sampleProperties": {
+            "action": {},
+            "filterType": "SqlFilter",
+            "sqlFilter": {
+              "sqlExpression": "user.EventType LIKE('%.Invoice.%.v1.Intake')",
+              "compatibilityLevel": 20
+            }
+          }
+        }
+      }
+    }
+  },
+  "variables": {},
+  "resources": [
+    {
+      "type": "Microsoft.ServiceBus/namespaces/topics/subscriptions/rules",
+      "apiVersion": "2022-10-01-preview",
+      "name": "[concat(parameters('serviceBusNamespace'), '/',parameters('serviceBusTopicName'),'/',parameters('serviceBusTopicSubscriptionName'),'/',parameters('serviceBusTopicSubscriptionFilterRuleName'))]",
+      "properties": "[parameters('topicSubscriptionFilterRuleProperties')]"
+    }
+  ]
+}

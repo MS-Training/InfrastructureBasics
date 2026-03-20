@@ -1,0 +1,49 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspaceName": {
+      "type": "string",
+      "metadata": {
+        "description": "Workspace name"
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "westus2"
+    },
+    "solutionProductName": {
+      "type": "string",
+      "defaultValue": "Updates"
+    },
+    "publisher": {
+      "type": "string",
+      "defaultValue": "Microsoft"
+    }
+  },
+  "variables": {
+    "product": "[concat('OMSGallery/',parameters('solutionProductName'))]",
+    "workSpaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces/', parameters('workspaceName'))]",
+    "name": "[concat(parameters('solutionProductName'),'(',parameters('workspaceName'),')')]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.OperationsManagement/solutions",
+      "apiVersion": "2015-11-01-preview",
+      "name": "[variables('name')]",
+      "location": "[parameters('location')]",
+      "plan": {
+        "name": "[variables('name')]",
+        "promotionCode": "",
+        "product": "[variables('product')]",
+        "publisher": "[parameters('publisher')]"
+      },
+      "properties": {
+        "workspaceResourceId": "[variables('workSpaceResourceId')]",
+        "containedResources": [
+          "[concat(variables('workSpaceResourceId'), concat('/views/', variables('name')))]"
+        ]
+      }
+    }
+  ]
+}

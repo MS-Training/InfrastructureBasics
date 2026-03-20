@@ -1,0 +1,1004 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "templatespecResourceGroupName": {
+      "type": "string",
+      "defaultValue": "RG-630-INV-GLOBAL-TEMPLATESPECS"
+    },
+    "baseName": {
+      "type": "string"
+    },
+    "environment": {
+      "type": "string",
+      "maxLength": 6,
+      "metadata": {
+        "description": "Letter Evironment Abreviation"
+      }
+    },
+    "deploymentFlags": {
+      "type": "Object",
+      "metadata": {
+        "description": "This is the parameter file under parameters folder"
+      }
+    },
+    "settings": {
+      "type": "secureObject",
+      "metadata": {
+        "description": "This is the parameter file under parameters folder"
+      }
+    }
+  },
+  "variables": {
+    "resourceBaseName": "[tolower(concat(parameters('baseName'), parameters('environment')))]",
+    "baseResourceGroupName": "[toupper(concat('RG-',parameters('settings').common.applicationId, '-', parameters('baseName'), '-', parameters('environment'), '-'))]",
+    "legacyEnvironment": "[if(contains(toUpper(parameters('environment')),'PRD'),'',if(contains(toUpper(parameters('environment')),'TST'),'test',if(contains(toUpper(parameters('environment')),'DEV'),'dev','NoFound')))]",
+    "legacyRegion": "[if(equals(toUpper(parameters('environment')),'PRD'),'scus',if(equals(toUpper(parameters('environment')),'PRDWEU'),'westeurope',if(contains(toUpper(parameters('environment')),'SCU'),'scus','eastus')))]",
+    "resourceNames": {
+      "baseResourceGroupName": "[variables('baseResourceGroupName')]",
+      "environment": "[parameters('environment')]",
+      "baseName": "[parameters('baseName')]",
+      "baseTemplatePath": "/BaseTemplates/",
+      "vmTemplatePath": "/VirtualMachines/",
+      "componentsTemplatePath": "/Components/",
+      "scriptsTemplatePath": "/Scripts/",
+      "vmsConfigPath": "/VirtualMachinesConfig/",
+      "installersPath": "/Installers/",
+      "factoriesPath": "/Factories/",
+      "modulesPath": "/CustomModules/",
+      "startRGNamesSectionComment": "----------------Start of RG Naming-------------------",
+      "resourceBaseName": "[tolower(concat(parameters('baseName'), parameters('environment')))]",
+      "commonResourceGroupName": "[toupper(concat(variables('baseResourceGroupName'), toUpper(parameters('settings').common.tag)))]",
+      "commonNetworkResourceGroupName": "[toupper(concat(variables('baseResourceGroupName'), toUpper(parameters('settings').commonNetwork.tag)))]",
+      "primaryCommonNetworkResourceGroupName": "[toUpper(concat('RG-',parameters('settings').common.applicationId,'-',parameters('baseName'),'-',parameters('settings').common.primaryEnvAbbreviation,'-',parameters('settings').commonNetwork.tag))]",
+      "dataStoresResourceGroupName": "[toupper(concat(variables('baseResourceGroupName'), toUpper(parameters('settings').data.tag)))]",
+      "sfWebResourceGroupName": "[toupper(concat(variables('baseResourceGroupName'), toUpper(parameters('settings').sfWebServices.tag)))]",
+      "invoiceIntakeResourceGroupName": "[toupper(concat(variables('baseResourceGroupName'), toUpper(parameters('settings').invoiceIntake.tag)))]",
+      "invoiceNotifyServiceResourceGroupName": "[toupper(concat(variables('baseResourceGroupName'), toUpper(parameters('settings').invoiceNotifyService.tag)))]",
+      "invoiceDocServiceResourceGroupName": "[toupper(concat(variables('baseResourceGroupName'), toUpper(parameters('settings').invoiceDocService.tag)))]",
+      "companyConfigResourceGroupName": "[toupper(concat(variables('baseResourceGroupName'), toUpper(parameters('settings').companyConfig.tag)))]",
+      "purchaseOrderResourceGroupName": "[toupper(concat(variables('baseResourceGroupName'), toUpper(parameters('settings').purchaseOrder.tag)))]",
+      "remediationResourceGroupName": "[toupper(concat(variables('baseResourceGroupName'), toUpper(parameters('settings').remediation.tag)))]",
+      "governmentClearanceResourceGroupName": "[toupper(concat(variables('baseResourceGroupName'), toUpper(parameters('settings').governmentClearance.tag)))]",
+      "rampResourceGroupName": "[toupper(concat(variables('baseResourceGroupName'), toUpper(parameters('settings').ramp.tag)))]",
+      "sapelServiceResourceGroupName": "[toupper(concat(variables('baseResourceGroupName'), toUpper(parameters('settings').invoiceSAPelService.tag)))]",
+      "digitalSignatureServiceResourceGroupName": "[toupper(concat(variables('baseResourceGroupName'), toUpper(parameters('settings').digitalSignatureService.tag)))]",
+      "gatewayServiceResourceGroupName": "[toupper(concat(variables('baseResourceGroupName'), toUpper(parameters('settings').gatewayService.tag)))]",
+      "toolsResourceGroupName": "[toupper(concat(variables('baseResourceGroupName'), toUpper(parameters('settings').tools.tag)))]",
+      "aiFoundryResourceGroupName": "[toupper(concat(variables('baseResourceGroupName'), toUpper(parameters('settings').aiFoundry.tag)))]",
+      "endRGNamesSectionComment": "--------------------End of RG Naming-------------------",
+      "startBaseNamesSectionComment": "--------------Start of Base Naming-----------------",
+      "keyVaultBaseName": "[concat(variables('resourceBaseName'), 'kv')]",
+      "storageAccountBaseName": "[concat(variables('resourceBaseName'), 'sa')]",
+      "automationAccountBaseName": "[concat(variables('resourceBaseName'),'ac')]",
+      "recoveryVaultBaseName": "[concat(variables('resourceBaseName'), 'asr')]",
+      "nameSpaceBaseName": "[concat(variables('resourceBaseName'), 'ns')]",
+      "appInsightsBaseName": "[concat(variables('resourceBaseName'), 'ai')]",
+      "workspaceBaseName": "[concat(variables('resourceBaseName'), 'la')]",
+      "redisCacheBaseName": "[concat(variables('resourceBaseName'), 'rc')]",
+      "managedIdentityBaseName": "[concat(variables('resourceBaseName'), 'mi')]",
+      "sfClusterBaseName": "[concat(variables('resourceBaseName'), 'sfcl')]",
+      "publicIpBaseName": "[concat(variables('resourceBaseName'), 'pip')]",
+      "publicIpPrefixBaseName": "[concat(variables('resourceBaseName'), 'pippfx')]",
+      "vnetBaseName": "[concat(variables('resourceBaseName'), 'vnet')]",
+      "nspBaseName": "[concat(variables('resourceBaseName'), 'nsp')]",
+      "hostingPlanBaseName": "[concat(variables('resourceBaseName'), 'hp')]",
+      "functionAppBaseName": "[concat(variables('resourceBaseName'), 'fcn')]",
+      "cosmosDbBaseName": "[concat(variables('resourceBaseName'), 'cdb')]",
+      "azureSqlServeBaseName": "[concat(variables('resourceBaseName'), 'sqlsvr')]",
+      "cognitiveServiceBaseName": "[concat(variables('resourceBaseName'), 'cog')]",
+      "aiFoundryBaseName": "[concat(variables('resourceBaseName'), 'aif')]",
+      "openAIServiceBaseName": "[concat(variables('resourceBaseName'), 'oai')]",
+      "cdnProfileBaseName": "[concat(variables('resourceBaseName'), 'fd')]",
+      "fdwafPolicyBaseName": "[concat(variables('resourceBaseName'), 'fdfp')]",
+      "dDoSProtectionPlanBaseName": "[concat(variables('resourceBaseName'), 'ddospp')]",
+      "natGatewayBaseName": "[concat(variables('resourceBaseName'), 'natgw')]",
+      "serviceBusBaseName": "[concat(variables('resourceBaseName'), 'sb')]",
+      "loadBalancerBaseName": "[concat(variables('resourceBaseName'), 'lbl')]",
+      "endBaseNamesSectionComment": "----------------End of Base Naming-------------------------",
+      "diagnosysStorageAccountName": "[concat(variables('resourceBaseName'), 'sadiag')]",
+      "functionsStorageAccountName": "[concat(variables('resourceBaseName'), 'safunctions')]",
+      "primaryCdnProfileName": "[tolower(concat(parameters('baseName'),parameters('settings').common.primaryEnvAbbreviation,'fd',parameters('settings').common.tag))]",
+      "templatespecsBaseResourceId": "[concat('/subscriptions/',subscription().subscriptionId,'/resourceGroups/',parameters('templatespecResourceGroupName'),'/providers/Microsoft.Resources/templateSpecs/')]",
+      "primaryAzureSqlResourceId": "[concat('/subscriptions/',subscription().subscriptionId,'/resourceGroups/',toupper(concat('RG-',parameters('settings').common.applicationId, '-', parameters('baseName'), '-', parameters('settings').common.primaryEnvAbbreviation, '-', toUpper(parameters('settings').data.tag))),'/providers/Microsoft.Sql/servers/',tolower(concat(parameters('baseName'), parameters('settings').common.primaryEnvAbbreviation)), 'sqlsvr', toLower(parameters('settings').data.tag))]",
+      "commonKeyVaultResourceId": "[concat('/subscriptions/',subscription().subscriptionId,'/resourceGroups/',toupper(concat(variables('baseResourceGroupName'), toUpper(parameters('settings').common.tag))),'/providers/Microsoft.KeyVault/vaults/',variables('resourceBaseName'), 'kv', toLower(parameters('settings').common.tag))]",
+      "commonWorkSpaceResourceId": "[concat('/subscriptions/',subscription().subscriptionId,'/resourceGroups/',toupper(concat(variables('baseResourceGroupName'), toUpper(parameters('settings').common.tag))),'/providers/microsoft.operationalinsights/workspaces/',variables('resourceBaseName'), 'la', toLower(parameters('settings').common.tag))]",
+      "commonAppInsightsResourceId": "[concat('/subscriptions/',subscription().subscriptionId,'/resourceGroups/',toupper(concat(variables('baseResourceGroupName'), toUpper(parameters('settings').common.tag))),'/providers/microsoft.insights/components/', variables('resourceBaseName'), 'ai', toLower(parameters('settings').common.tag))]",
+      "commonManagedIdentityResourceId": "[concat('/subscriptions/',subscription().subscriptionId,'/resourceGroups/',toupper(concat(variables('baseResourceGroupName'), toUpper(parameters('settings').common.tag))),'/providers/Microsoft.ManagedIdentity/userAssignedIdentities/',variables('resourceBaseName'), 'mi', toLower(parameters('settings').common.tag))]",
+      "commonVirtualNetworkResourceId": "[concat('/subscriptions/',subscription().subscriptionId,'/resourceGroups/',toupper(concat(variables('baseResourceGroupName'), toUpper(parameters('settings').commonNetwork.tag))),'/providers/Microsoft.Network/virtualnetworks/',variables('resourceBaseName'), 'vnet', toLower(parameters('settings').commonNetwork.tag))]",
+      "functionsHostingPlanResourceId": "[concat('/subscriptions/',subscription().subscriptionId,'/resourceGroups/',toupper(concat(variables('baseResourceGroupName'), toUpper(parameters('settings').common.tag))),'/providers/Microsoft.Web/serverfarms/',variables('resourceBaseName'), 'hp', 'functions')]",
+      "commonOpenAiResourceId": "[concat('/subscriptions/',subscription().subscriptionId,'/resourceGroups/',toupper(concat(variables('baseResourceGroupName'), toUpper(parameters('settings').common.tag))),'/providers/Microsoft.CognitiveServices/accounts/',variables('resourceBaseName'), 'oai', toLower(parameters('settings').common.tag))]",
+      "primaryAzureSqlServerName": "[tolower(concat(parameters('baseName'),parameters('settings').common.primaryEnvAbbreviation,'sqlsvr',parameters('settings').data.tag))]",
+      "legacyResourceNames": {
+        "comment": "This section is for backward compatibility with the old naming convention, it will be removed in the future",
+        "serviceBusName": "[concat('inv-sb',if(contains(toUpper(parameters('environment')),'PRD'),'','-'),variables('legacyEnvironment'),'-',variables('legacyRegion'))]",
+        "eventsStorageAccountName": "[concat('invevents',variables('legacyEnvironment'),variables('legacyRegion'))]",
+        "configurationCosmosDBName": "[concat('msinvconfigurationservice',variables('legacyEnvironment'))]",
+        "invoiceCosmosDBName": "[concat('msinvinvoiceservice',variables('legacyEnvironment'))]",
+        "invoiceSQLServerName": "[concat(if(contains(toUpper(parameters('environment')),'DEV'),'invdevsqlwestus',concat('inv',if(contains(toUpper(parameters('environment')),'PRD'),'prd','test'),'sql')))]"
+      }
+    }
+  },
+  "resources": [
+    {
+      "name": "[take(concat('CreateResourceGroups-',deployment().name),60)]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "location": "[parameters('settings').common.region]",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(variables('resourceNames').templatespecsBaseResourceId, 'template-resourceGroup', '/versions/v1')]"
+        },
+        "parameters": {
+          "resourceGroupNames": {
+            "value": [
+              "[variables('resourceNames').commonResourceGroupName]",
+              "[variables('resourceNames').commonNetworkResourceGroupName]",
+              "[if(parameters('deploymentFlags').deployDataStores, variables('resourceNames').dataStoresResourceGroupName,'skip1')]",
+              "[if(parameters('deploymentFlags').deployServiceFabricWebServices, variables('resourceNames').sfWebResourceGroupName,'skip2')]",
+              "[if(parameters('deploymentFlags').deployInvoiceIntake, variables('resourceNames').invoiceIntakeResourceGroupName,'skip3')]",
+              "[if(parameters('deploymentFlags').deployInvoiceDocService, variables('resourceNames').invoiceDocServiceResourceGroupName,'skip4')]",
+              "[if(parameters('deploymentFlags').deployCompanyConfig, variables('resourceNames').companyConfigResourceGroupName,'skip5')]",
+              "[if(parameters('deploymentFlags').deployPurchaseOrder, variables('resourceNames').purchaseOrderResourceGroupName,'skip6')]",
+              "[if(parameters('deploymentFlags').deployRemediation, variables('resourceNames').remediationResourceGroupName,'skip7')]",
+              "[if(parameters('deploymentFlags').deployGovernmentClearance, variables('resourceNames').governmentClearanceResourceGroupName,'skip8')]",
+              "[if(parameters('deploymentFlags').deployInvoiceNotifyService, variables('resourceNames').invoiceNotifyServiceResourceGroupName,'skip9')]",
+              "[if(parameters('deploymentFlags').deploySAPeLService, variables('resourceNames').sapelServiceResourceGroupName,'skip10')]",
+              "[if(parameters('deploymentFlags').deployDigitalSignatureService, variables('resourceNames').digitalSignatureServiceResourceGroupName,'skip11')]",
+              "[if(parameters('deploymentFlags').deployGatewayService, variables('resourceNames').gatewayServiceResourceGroupName,'skip12')]",
+              "[if(parameters('deploymentFlags').deployTools, variables('resourceNames').toolsResourceGroupName,'skip13')]",
+              "[if(parameters('deploymentFlags').deployRamp, variables('resourceNames').rampResourceGroupName,'skip14')]"
+            ]
+          },
+          "environment": {
+            "value": "[parameters('environment')]"
+          },
+          "location": {
+            "value": "[parameters('settings').common.region]"
+          },
+          "componentId": {
+            "value": "[parameters('settings').common.componentId]"
+          }
+        }
+      }
+    },
+    {
+      "comments": "This does not create any resources, it just returns the IP rules configuration for the network ACL",
+      "name": "DeployNetworkAclIpRules",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[variables('resourceNames').commonResourceGroupName]",
+      "apiVersion": "2022-09-01",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(variables('resourceNames').templatespecsBaseResourceId, 'network-acl-ip-rules', '/versions/v1')]"
+        }
+      }
+    },
+    {
+      "condition": "[or(parameters('deploymentFlags').isNewEnvironment,parameters('deploymentFlags').deployCommonStorage)]",
+      "name": "[take(concat('DeployCommon-',deployment().name),60)]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[variables('resourceNames').commonResourceGroupName]",
+      "apiVersion": "2022-09-01",
+      "dependsOn": [
+        "[take(concat('CreateResourceGroups-',deployment().name),60)]",
+        "[take(concat('deployCommonNetwork-',deployment().name),60)]",
+        "DeployNetworkAclIpRules"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(variables('resourceNames').templatespecsBaseResourceId, 'Invoice-common-resources', '/versions/v1')]"
+        },
+        "parameters": {
+          "deploymentFlags": {
+            "value": "[parameters('deploymentFlags')]"
+          },
+          "settings": {
+            "value": "[parameters('settings')]"
+          },
+          "resourceNames": {
+            "value": "[variables('resourceNames')]"
+          },
+          "networkAclIpRulesConfig": {
+            "value": "[reference('DeployNetworkAclIpRules').outputs.networkAclIpRulesConfig.value]"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[parameters('deploymentFlags').deployCommonAi]",
+      "name": "[take(concat('DeployCommonAI-',deployment().name),60)]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[variables('resourceNames').commonResourceGroupName]",
+      "apiVersion": "2022-09-01",
+      "dependsOn": [
+        "DeployNetworkAclIpRules"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(variables('resourceNames').templatespecsBaseResourceId, 'Invoice-common-ai-resources', '/versions/v1')]"
+        },
+        "parameters": {
+          "deploymentFlags": {
+            "value": "[parameters('deploymentFlags')]"
+          },
+          "settings": {
+            "value": "[parameters('settings')]"
+          },
+          "resourceNames": {
+            "value": "[variables('resourceNames')]"
+          },
+          "networkAclIpRulesConfig": {
+            "value": "[reference('DeployNetworkAclIpRules').outputs.networkAclIpRulesConfig.value]"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[parameters('deploymentFlags').deployAIFoundry]",
+      "name": "[take(concat('DeployAIFoundry-',deployment().name),60)]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[variables('resourceNames').commonResourceGroupName]",
+      "apiVersion": "2022-09-01",
+      "dependsOn": [
+        "DeployNetworkAclIpRules"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(variables('resourceNames').templatespecsBaseResourceId, 'Invoice-ai-foundry-resource', '/versions/v1')]"
+        },
+        "parameters": {
+          "settings": {
+            "value": "[parameters('settings')]"
+          },
+          "resourceNames": {
+            "value": "[variables('resourceNames')]"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[or(parameters('deploymentFlags').deploySecrets,parameters('deploymentFlags').setAppKeyVaultPermissions,parameters('deploymentFlags').isNewEnvironment)]",
+      "name": "[take(concat('DeploySecrets-',deployment().name),60)]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[variables('resourceNames').commonResourceGroupName]",
+      "apiVersion": "2022-09-01",
+      "dependsOn": [
+        "[take(concat('DeployCommon-',deployment().name),60)]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(variables('resourceNames').templatespecsBaseResourceId, 'Invoice-secret-manager', '/versions/v1')]"
+        },
+        "parameters": {
+          "setRBACKevaultPermissions": {
+            "value": "[if(parameters('deploymentFlags').isNewEnvironment, false(), true())]"
+          },
+          "deploymentFlags": {
+            "value": "[parameters('deploymentFlags')]"
+          },
+          "settings": {
+            "value": "[parameters('settings')]"
+          },
+          "resourceNames": {
+            "value": "[variables('resourceNames')]"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[parameters('deploymentFlags').deployAlertingMonitoring]",
+      "name": "[take(concat('deployAlertingMonitoring-',deployment().name),60)]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[variables('resourceNames').commonResourceGroupName]",
+      "apiVersion": "2022-09-01",
+      "dependsOn": [
+        "[take(concat('DeployCommon-',deployment().name),60)]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(variables('resourceNames').templatespecsBaseResourceId, 'Invoice-alerting-monitoring', '/versions/v1')]"
+        },
+        "parameters": {
+          "settings": {
+            "value": "[parameters('settings')]"
+          },
+          "resourceNames": {
+            "value": "[variables('resourceNames')]"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[or(parameters('deploymentFlags').isNewEnvironment,parameters('deploymentFlags').deployCommonNetwork)]",
+      "name": "[take(concat('deployCommonNetwork-',deployment().name),60)]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[variables('resourceNames').commonNetworkResourceGroupName]",
+      "apiVersion": "2022-09-01",
+      "dependsOn": [
+        "[take(concat('CreateResourceGroups-',deployment().name),60)]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(variables('resourceNames').templatespecsBaseResourceId, 'Invoice-network-common-resources', '/versions/v1')]"
+        },
+        "parameters": {
+          "settings": {
+            "value": "[parameters('settings')]"
+          },
+          "resourceNames": {
+            "value": "[variables('resourceNames')]"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[parameters('deploymentFlags').deployOneTimeAutomation]",
+      "name": "[take(concat('OneTimeAutomation-',deployment().name),60)]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "location": "[parameters('settings').common.region]",
+      "dependsOn": [
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(variables('resourceNames').templatespecsBaseResourceId, 'Global-oneTimeAutomation-modern', '/versions/v1')]"
+        },
+        "parameters": {
+          "resourceNames": {
+            "value": "[variables('resourceNames')]"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[parameters('deploymentFlags').deployServiceFabricWebServices]",
+      "name": "[take(concat('deployServiceFabricWebServices-',deployment().name),60)]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "resourceGroup": "[variables('resourceNames').sfWebResourceGroupName]",
+      "dependsOn": [
+        "[take(concat('DeployCommon-',deployment().name),60)]",
+        "[take(concat('DeploySecrets-',deployment().name),60)]",
+        "[take(concat('deployCommonNetwork-',deployment().name),60)]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(variables('resourceNames').templatespecsBaseResourceId, 'Invoice-service-fabric-web-resources', '/versions/v1')]"
+        },
+        "parameters": {
+          "settings": {
+            "value": "[parameters('settings')]"
+          },
+          "resourceNames": {
+            "value": "[variables('resourceNames')]"
+          },
+          "appKeyVaultId": {
+            "value": "[if(parameters('deploymentFlags').isNewEnvironment,reference(take(concat('DeployCommon-',deployment().name),60)).outputs.commonKeyVaultResourceId.value,if(and(not(parameters('deploymentFlags').isNewEnvironment),parameters('deploymentFlags').deploySecrets),reference(take(concat('DeploySecrets-',deployment().name),60)).outputs.commonKeyVaultResourceId.value,variables('resourceNames').commonKeyVaultResourceId))]"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[parameters('deploymentFlags').deployInvoiceIntake]",
+      "name": "[take(concat('deployInvoiceIntake-',deployment().name),60)]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "resourceGroup": "[variables('resourceNames').invoiceIntakeResourceGroupName]",
+      "dependsOn": [
+        "[take(concat('DeployCommon-',deployment().name),60)]",
+        "[take(concat('DeploySecrets-',deployment().name),60)]",
+        "[take(concat('deployCommonNetwork-',deployment().name),60)]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(variables('resourceNames').templatespecsBaseResourceId, 'Invoice-intake-service-resources', '/versions/v1')]"
+        },
+        "parameters": {
+          "settings": {
+            "value": "[parameters('settings')]"
+          },
+          "resourceNames": {
+            "value": "[variables('resourceNames')]"
+          },
+          "storageConnectionString": {
+            "reference": {
+              "keyVault": {
+                "id": "[if(parameters('deploymentFlags').isNewEnvironment,reference(take(concat('DeployCommon-',deployment().name),60)).outputs.commonKeyVaultResourceId.value,variables('resourceNames').commonKeyVaultResourceId)]"
+              },
+              "secretName": "[concat('kv-',variables('resourceNames').functionsStorageAccountName,'-ConnectionString')]"
+            }
+          },
+          "appInsightsInstrumentationKey": {
+            "reference": {
+              "keyVault": {
+                "id": "[if(parameters('deploymentFlags').isNewEnvironment,reference(take(concat('DeployCommon-',deployment().name),60)).outputs.commonKeyVaultResourceId.value,variables('resourceNames').commonKeyVaultResourceId)]"
+              },
+              "secretName": "[concat('kv-',variables('resourceNames').appInsightsBaseName,toLower(parameters('settings').common.tag),'-InstrumentationKey')]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "condition": "[parameters('deploymentFlags').deployInvoiceNotifyService]",
+      "name": "[take(concat('deployInvoiceNotifyService-',deployment().name),60)]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "resourceGroup": "[variables('resourceNames').invoiceNotifyServiceResourceGroupName]",
+      "dependsOn": [
+        "[take(concat('DeployCommon-',deployment().name),60)]",
+        "[take(concat('DeploySecrets-',deployment().name),60)]",
+        "[take(concat('deployCommonNetwork-',deployment().name),60)]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(variables('resourceNames').templatespecsBaseResourceId, 'Invoice-notify-service-resources', '/versions/v1')]"
+        },
+        "parameters": {
+          "settings": {
+            "value": "[parameters('settings')]"
+          },
+          "resourceNames": {
+            "value": "[variables('resourceNames')]"
+          },
+          "storageConnectionString": {
+            "reference": {
+              "keyVault": {
+                "id": "[if(parameters('deploymentFlags').isNewEnvironment,reference(take(concat('DeployCommon-',deployment().name),60)).outputs.commonKeyVaultResourceId.value,variables('resourceNames').commonKeyVaultResourceId)]"
+              },
+              "secretName": "[concat('kv-',variables('resourceNames').functionsStorageAccountName,'-ConnectionString')]"
+            }
+          },
+          "appInsightsInstrumentationKey": {
+            "reference": {
+              "keyVault": {
+                "id": "[if(parameters('deploymentFlags').isNewEnvironment,reference(take(concat('DeployCommon-',deployment().name),60)).outputs.commonKeyVaultResourceId.value,variables('resourceNames').commonKeyVaultResourceId)]"
+              },
+              "secretName": "[concat('kv-',variables('resourceNames').appInsightsBaseName,toLower(parameters('settings').common.tag),'-InstrumentationKey')]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "condition": "[parameters('deploymentFlags').deployInvoiceDocService]",
+      "name": "[take(concat('deployInvoiceDocService-',deployment().name),60)]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "resourceGroup": "[variables('resourceNames').invoiceDocServiceResourceGroupName]",
+      "dependsOn": [
+        "[take(concat('DeployCommon-',deployment().name),60)]",
+        "[take(concat('DeploySecrets-',deployment().name),60)]",
+        "[take(concat('deployCommonNetwork-',deployment().name),60)]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(variables('resourceNames').templatespecsBaseResourceId, 'Invoice-document-service-resources', '/versions/v1')]"
+        },
+        "parameters": {
+          "settings": {
+            "value": "[parameters('settings')]"
+          },
+          "resourceNames": {
+            "value": "[variables('resourceNames')]"
+          },
+          "storageConnectionString": {
+            "reference": {
+              "keyVault": {
+                "id": "[if(parameters('deploymentFlags').isNewEnvironment,reference(take(concat('DeployCommon-',deployment().name),60)).outputs.commonKeyVaultResourceId.value,variables('resourceNames').commonKeyVaultResourceId)]"
+              },
+              "secretName": "[concat('kv-',variables('resourceNames').functionsStorageAccountName,'-ConnectionString')]"
+            }
+          },
+          "appInsightsInstrumentationKey": {
+            "reference": {
+              "keyVault": {
+                "id": "[if(parameters('deploymentFlags').isNewEnvironment,reference(take(concat('DeployCommon-',deployment().name),60)).outputs.commonKeyVaultResourceId.value,variables('resourceNames').commonKeyVaultResourceId)]"
+              },
+              "secretName": "[concat('kv-',variables('resourceNames').appInsightsBaseName,toLower(parameters('settings').common.tag),'-InstrumentationKey')]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "condition": "[parameters('deploymentFlags').deployCompanyConfig]",
+      "name": "[take(concat('deployCompanyConfig-',deployment().name),60)]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "resourceGroup": "[variables('resourceNames').companyConfigResourceGroupName]",
+      "dependsOn": [
+        "[take(concat('DeployCommon-',deployment().name),60)]",
+        "[take(concat('DeploySecrets-',deployment().name),60)]",
+        "[take(concat('deployCommonNetwork-',deployment().name),60)]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(variables('resourceNames').templatespecsBaseResourceId, 'Invoice-company-config-service-resources', '/versions/v1')]"
+        },
+        "parameters": {
+          "settings": {
+            "value": "[parameters('settings')]"
+          },
+          "resourceNames": {
+            "value": "[variables('resourceNames')]"
+          },
+          "storageConnectionString": {
+            "reference": {
+              "keyVault": {
+                "id": "[if(parameters('deploymentFlags').isNewEnvironment,reference(take(concat('DeployCommon-',deployment().name),60)).outputs.commonKeyVaultResourceId.value,variables('resourceNames').commonKeyVaultResourceId)]"
+              },
+              "secretName": "[concat('kv-',variables('resourceNames').functionsStorageAccountName,'-ConnectionString')]"
+            }
+          },
+          "appInsightsInstrumentationKey": {
+            "reference": {
+              "keyVault": {
+                "id": "[if(parameters('deploymentFlags').isNewEnvironment,reference(take(concat('DeployCommon-',deployment().name),60)).outputs.commonKeyVaultResourceId.value,variables('resourceNames').commonKeyVaultResourceId)]"
+              },
+              "secretName": "[concat('kv-',variables('resourceNames').appInsightsBaseName,toLower(parameters('settings').common.tag),'-InstrumentationKey')]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "condition": "[parameters('deploymentFlags').deployPurchaseOrder]",
+      "name": "[take(concat('deployPurchaseOrder-',deployment().name),60)]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "resourceGroup": "[variables('resourceNames').purchaseOrderResourceGroupName]",
+      "dependsOn": [
+        "[take(concat('DeployCommon-',deployment().name),60)]",
+        "[take(concat('DeploySecrets-',deployment().name),60)]",
+        "[take(concat('deployCommonNetwork-',deployment().name),60)]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(variables('resourceNames').templatespecsBaseResourceId, 'Invoice-purchase-order-service-resources', '/versions/v1')]"
+        },
+        "parameters": {
+          "settings": {
+            "value": "[parameters('settings')]"
+          },
+          "resourceNames": {
+            "value": "[variables('resourceNames')]"
+          },
+          "storageConnectionString": {
+            "reference": {
+              "keyVault": {
+                "id": "[if(parameters('deploymentFlags').isNewEnvironment,reference(take(concat('DeployCommon-',deployment().name),60)).outputs.commonKeyVaultResourceId.value,variables('resourceNames').commonKeyVaultResourceId)]"
+              },
+              "secretName": "[concat('kv-',variables('resourceNames').functionsStorageAccountName,'-ConnectionString')]"
+            }
+          },
+          "appInsightsInstrumentationKey": {
+            "reference": {
+              "keyVault": {
+                "id": "[if(parameters('deploymentFlags').isNewEnvironment,reference(take(concat('DeployCommon-',deployment().name),60)).outputs.commonKeyVaultResourceId.value,variables('resourceNames').commonKeyVaultResourceId)]"
+              },
+              "secretName": "[concat('kv-',variables('resourceNames').appInsightsBaseName,toLower(parameters('settings').common.tag),'-InstrumentationKey')]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "condition": "[parameters('deploymentFlags').deployRemediation]",
+      "name": "[take(concat('deployRemediation-',deployment().name),60)]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "resourceGroup": "[variables('resourceNames').remediationResourceGroupName]",
+      "dependsOn": [
+        "[take(concat('DeployCommon-',deployment().name),60)]",
+        "[take(concat('DeploySecrets-',deployment().name),60)]",
+        "[take(concat('deployCommonNetwork-',deployment().name),60)]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(variables('resourceNames').templatespecsBaseResourceId, 'Invoice-remediation-service-resources', '/versions/v1')]"
+        },
+        "parameters": {
+          "settings": {
+            "value": "[parameters('settings')]"
+          },
+          "resourceNames": {
+            "value": "[variables('resourceNames')]"
+          },
+          "storageConnectionString": {
+            "reference": {
+              "keyVault": {
+                "id": "[if(parameters('deploymentFlags').isNewEnvironment,reference(take(concat('DeployCommon-',deployment().name),60)).outputs.commonKeyVaultResourceId.value,variables('resourceNames').commonKeyVaultResourceId)]"
+              },
+              "secretName": "[concat('kv-',variables('resourceNames').functionsStorageAccountName,'-ConnectionString')]"
+            }
+          },
+          "appInsightsInstrumentationKey": {
+            "reference": {
+              "keyVault": {
+                "id": "[if(parameters('deploymentFlags').isNewEnvironment,reference(take(concat('DeployCommon-',deployment().name),60)).outputs.commonKeyVaultResourceId.value,variables('resourceNames').commonKeyVaultResourceId)]"
+              },
+              "secretName": "[concat('kv-',variables('resourceNames').appInsightsBaseName,toLower(parameters('settings').common.tag),'-InstrumentationKey')]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "condition": "[parameters('deploymentFlags').deployGovernmentClearance]",
+      "name": "[take(concat('deployGovernmentClearance-',deployment().name),60)]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "resourceGroup": "[variables('resourceNames').governmentClearanceResourceGroupName]",
+      "dependsOn": [
+        "[take(concat('DeployCommon-',deployment().name),60)]",
+        "[take(concat('DeploySecrets-',deployment().name),60)]",
+        "[take(concat('deployCommonNetwork-',deployment().name),60)]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(variables('resourceNames').templatespecsBaseResourceId, 'Invoice-government-clearance-service-resources', '/versions/v1')]"
+        },
+        "parameters": {
+          "settings": {
+            "value": "[parameters('settings')]"
+          },
+          "resourceNames": {
+            "value": "[variables('resourceNames')]"
+          },
+          "storageConnectionString": {
+            "reference": {
+              "keyVault": {
+                "id": "[if(parameters('deploymentFlags').isNewEnvironment,reference(take(concat('DeployCommon-',deployment().name),60)).outputs.commonKeyVaultResourceId.value,variables('resourceNames').commonKeyVaultResourceId)]"
+              },
+              "secretName": "[concat('kv-',variables('resourceNames').functionsStorageAccountName,'-ConnectionString')]"
+            }
+          },
+          "appInsightsInstrumentationKey": {
+            "reference": {
+              "keyVault": {
+                "id": "[if(parameters('deploymentFlags').isNewEnvironment,reference(take(concat('DeployCommon-',deployment().name),60)).outputs.commonKeyVaultResourceId.value,variables('resourceNames').commonKeyVaultResourceId)]"
+              },
+              "secretName": "[concat('kv-',variables('resourceNames').appInsightsBaseName,toLower(parameters('settings').common.tag),'-InstrumentationKey')]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "condition": "[parameters('deploymentFlags').deploySAPeLService]",
+      "name": "[take(concat('deploySAPeLService-',deployment().name),60)]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "resourceGroup": "[variables('resourceNames').sapelServiceResourceGroupName]",
+      "dependsOn": [
+        "[take(concat('DeployCommon-',deployment().name),60)]",
+        "[take(concat('DeploySecrets-',deployment().name),60)]",
+        "[take(concat('deployCommonNetwork-',deployment().name),60)]",
+        "[take(concat('deployDataStores-',deployment().name),60)]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(variables('resourceNames').templatespecsBaseResourceId, 'Invoice-sapel-service-resources', '/versions/v1')]"
+        },
+        "parameters": {
+          "settings": {
+            "value": "[parameters('settings')]"
+          },
+          "resourceNames": {
+            "value": "[variables('resourceNames')]"
+          },
+          "storageConnectionString": {
+            "reference": {
+              "keyVault": {
+                "id": "[if(parameters('deploymentFlags').isNewEnvironment,reference(take(concat('DeployCommon-',deployment().name),60)).outputs.commonKeyVaultResourceId.value,variables('resourceNames').commonKeyVaultResourceId)]"
+              },
+              "secretName": "[concat('kv-',variables('resourceNames').functionsStorageAccountName,'-ConnectionString')]"
+            }
+          },
+          "appInsightsInstrumentationKey": {
+            "reference": {
+              "keyVault": {
+                "id": "[if(parameters('deploymentFlags').isNewEnvironment,reference(take(concat('DeployCommon-',deployment().name),60)).outputs.commonKeyVaultResourceId.value,variables('resourceNames').commonKeyVaultResourceId)]"
+              },
+              "secretName": "[concat('kv-',variables('resourceNames').appInsightsBaseName,toLower(parameters('settings').common.tag),'-InstrumentationKey')]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "condition": "[parameters('deploymentFlags').deployGatewayService]",
+      "name": "[take(concat('deployGatewayService-',deployment().name),60)]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "resourceGroup": "[variables('resourceNames').gatewayServiceResourceGroupName]",
+      "dependsOn": [
+        "[take(concat('DeployCommon-',deployment().name),60)]",
+        "[take(concat('DeploySecrets-',deployment().name),60)]",
+        "[take(concat('deployCommonNetwork-',deployment().name),60)]",
+        "[take(concat('deployDataStores-',deployment().name),60)]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(variables('resourceNames').templatespecsBaseResourceId, 'Invoice-gateway-service-resources', '/versions/v1')]"
+        },
+        "parameters": {
+          "settings": {
+            "value": "[parameters('settings')]"
+          },
+          "resourceNames": {
+            "value": "[variables('resourceNames')]"
+          },
+          "storageConnectionString": {
+            "reference": {
+              "keyVault": {
+                "id": "[if(parameters('deploymentFlags').isNewEnvironment,reference(take(concat('DeployCommon-',deployment().name),60)).outputs.commonKeyVaultResourceId.value,variables('resourceNames').commonKeyVaultResourceId)]"
+              },
+              "secretName": "[concat('kv-',variables('resourceNames').functionsStorageAccountName,'-ConnectionString')]"
+            }
+          },
+          "appInsightsInstrumentationKey": {
+            "reference": {
+              "keyVault": {
+                "id": "[if(parameters('deploymentFlags').isNewEnvironment,reference(take(concat('DeployCommon-',deployment().name),60)).outputs.commonKeyVaultResourceId.value,variables('resourceNames').commonKeyVaultResourceId)]"
+              },
+              "secretName": "[concat('kv-',variables('resourceNames').appInsightsBaseName,toLower(parameters('settings').common.tag),'-InstrumentationKey')]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "condition": "[parameters('deploymentFlags').deployDataStores]",
+      "name": "[take(concat('deployDataStores-',deployment().name),60)]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[variables('resourceNames').dataStoresResourceGroupName]",
+      "apiVersion": "2022-09-01",
+      "dependsOn": [
+        "[take(concat('DeployCommon-',deployment().name),60)]",
+        "[take(concat('DeploySecrets-',deployment().name),60)]",
+        "[take(concat('deployCommonNetwork-',deployment().name),60)]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(variables('resourceNames').templatespecsBaseResourceId, 'Invoice-common-azure-sql-resources', '/versions/v1')]"
+        },
+        "parameters": {
+          "settings": {
+            "value": "[parameters('settings')]"
+          },
+          "resourceNames": {
+            "value": "[variables('resourceNames')]"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[parameters('deploymentFlags').deployDigitalSignatureService]",
+      "name": "[take(concat('deployDigitalSignatureService-',deployment().name),60)]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "resourceGroup": "[variables('resourceNames').digitalSignatureServiceResourceGroupName]",
+      "dependsOn": [
+        "[take(concat('DeployCommon-',deployment().name),60)]",
+        "[take(concat('DeploySecrets-',deployment().name),60)]",
+        "[take(concat('deployCommonNetwork-',deployment().name),60)]",
+        "[take(concat('deployDataStores-',deployment().name),60)]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(variables('resourceNames').templatespecsBaseResourceId, 'Invoice-digital-signature-service-resources', '/versions/v1')]"
+        },
+        "parameters": {
+          "settings": {
+            "value": "[parameters('settings')]"
+          },
+          "resourceNames": {
+            "value": "[variables('resourceNames')]"
+          },
+          "storageConnectionString": {
+            "reference": {
+              "keyVault": {
+                "id": "[if(parameters('deploymentFlags').isNewEnvironment,reference(take(concat('DeployCommon-',deployment().name),60)).outputs.commonKeyVaultResourceId.value,variables('resourceNames').commonKeyVaultResourceId)]"
+              },
+              "secretName": "[concat('kv-',variables('resourceNames').functionsStorageAccountName,'-ConnectionString')]"
+            }
+          },
+          "appInsightsInstrumentationKey": {
+            "reference": {
+              "keyVault": {
+                "id": "[if(parameters('deploymentFlags').isNewEnvironment,reference(take(concat('DeployCommon-',deployment().name),60)).outputs.commonKeyVaultResourceId.value,variables('resourceNames').commonKeyVaultResourceId)]"
+              },
+              "secretName": "[concat('kv-',variables('resourceNames').appInsightsBaseName,toLower(parameters('settings').common.tag),'-InstrumentationKey')]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "condition": "[parameters('deploymentFlags').deployTools]",
+      "name": "[take(concat('deployToolsService-',deployment().name),60)]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "resourceGroup": "[variables('resourceNames').sapelServiceResourceGroupName]",
+      "dependsOn": [
+        "[take(concat('DeployCommon-',deployment().name),60)]",
+        "[take(concat('DeploySecrets-',deployment().name),60)]",
+        "[take(concat('deployCommonNetwork-',deployment().name),60)]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(variables('resourceNames').templatespecsBaseResourceId, 'Invoice-tools-service-resources', '/versions/v1')]"
+        },
+        "parameters": {
+          "settings": {
+            "value": "[parameters('settings')]"
+          },
+          "resourceNames": {
+            "value": "[variables('resourceNames')]"
+          },
+          "storageConnectionString": {
+            "reference": {
+              "keyVault": {
+                "id": "[if(parameters('deploymentFlags').isNewEnvironment,reference(take(concat('DeployCommon-',deployment().name),60)).outputs.commonKeyVaultResourceId.value,variables('resourceNames').commonKeyVaultResourceId)]"
+              },
+              "secretName": "[concat('kv-',variables('resourceNames').functionsStorageAccountName,'-ConnectionString')]"
+            }
+          },
+          "appInsightsInstrumentationKey": {
+            "reference": {
+              "keyVault": {
+                "id": "[if(parameters('deploymentFlags').isNewEnvironment,reference(take(concat('DeployCommon-',deployment().name),60)).outputs.commonKeyVaultResourceId.value,variables('resourceNames').commonKeyVaultResourceId)]"
+              },
+              "secretName": "[concat('kv-',variables('resourceNames').appInsightsBaseName,toLower(parameters('settings').common.tag),'-InstrumentationKey')]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "condition": "[parameters('deploymentFlags').deployDataStoreExternalData]",
+      "name": "[take(concat('deployDataStoreExternalData-',deployment().name),60)]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[variables('resourceNames').dataStoresResourceGroupName]",
+      "apiVersion": "2022-09-01",
+      "dependsOn": [
+        "[take(concat('DeployCommon-',deployment().name),60)]",
+        "[take(concat('DeploySecrets-',deployment().name),60)]",
+        "[take(concat('deployCommonNetwork-',deployment().name),60)]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(variables('resourceNames').templatespecsBaseResourceId, 'Invoice-externaldata-azure-sql-resources', '/versions/v1')]"
+        },
+        "parameters": {
+          "settings": {
+            "value": "[parameters('settings')]"
+          },
+          "resourceNames": {
+            "value": "[variables('resourceNames')]"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[parameters('deploymentFlags').deployCommonMessaging]",
+      "name": "[take(concat('CommonMessaging-',deployment().name),60)]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "location": "[parameters('settings').common.region]",
+      "dependsOn": [
+        "[take(concat('DeployCommon-',deployment().name),60)]",
+        "[take(concat('DeploySecrets-',deployment().name),60)]",
+        "[take(concat('deployCommonNetwork-',deployment().name),60)]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(variables('resourceNames').templatespecsBaseResourceId, 'Invoice-common-messaging-resources', '/versions/v1')]"
+        },
+        "parameters": {
+          "settings": {
+            "value": "[parameters('settings')]"
+          },
+          "resourceNames": {
+            "value": "[variables('resourceNames')]"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[and(parameters('settings').common.isPrimaryRegion, parameters('deploymentFlags').deployRamp)]",
+      "name": "[take(concat('deployRamp-',deployment().name),60)]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "resourceGroup": "[variables('resourceNames').rampResourceGroupName]",
+      "dependsOn": [
+        "[take(concat('DeployCommon-',deployment().name),60)]",
+        "[take(concat('DeploySecrets-',deployment().name),60)]",
+        "[take(concat('deployCommonNetwork-',deployment().name),60)]",
+        "[take(concat('deployDataStores-',deployment().name),60)]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(variables('resourceNames').templatespecsBaseResourceId, 'Invoice-ramp-service-resources', '/versions/v1')]"
+        },
+        "parameters": {
+          "settings": {
+            "value": "[parameters('settings')]"
+          },
+          "resourceNames": {
+            "value": "[variables('resourceNames')]"
+          },
+          "appInsightsInstrumentationKey": {
+            "reference": {
+              "keyVault": {
+                "id": "[if(parameters('deploymentFlags').isNewEnvironment,reference(take(concat('DeployCommon-',deployment().name),60)).outputs.commonKeyVaultResourceId.value,variables('resourceNames').commonKeyVaultResourceId)]"
+              },
+              "secretName": "[concat('kv-',variables('resourceNames').appInsightsBaseName,toLower(parameters('settings').common.tag),'-InstrumentationKey')]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "condition": "[parameters('deploymentFlags').updateFrontDoorOriginWeight]",
+      "name": "[take(concat('updateFrontDoorOriginWeight-',deployment().name),60)]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "resourceGroup": "[variables('resourceNames').commonNetworkResourceGroupName]",
+      "dependsOn": [
+        "[take(concat('DeployCommon-',deployment().name),60)]",
+        "[take(concat('DeploySecrets-',deployment().name),60)]",
+        "[take(concat('deployCommonNetwork-',deployment().name),60)]",
+        "[take(concat('deployDataStores-',deployment().name),60)]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(variables('resourceNames').templatespecsBaseResourceId, 'Invoice-tools-frontdoor-updates', '/versions/v1')]"
+        },
+        "parameters": {
+          "settings": {
+            "value": "[parameters('settings')]"
+          },
+          "resourceNames": {
+            "value": "[variables('resourceNames')]"
+          }
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "commonKeyVaultResourceId": {
+      "type": "string",
+      "value": "[if(parameters('deploymentFlags').isNewEnvironment,reference(take(concat('DeployCommon-',deployment().name),60)).outputs.commonKeyVaultResourceId.value,if(and(not(parameters('deploymentFlags').isNewEnvironment),parameters('deploymentFlags').deploySecrets),reference(take(concat('DeploySecrets-',deployment().name),60)).outputs.commonKeyVaultResourceId.value,variables('resourceNames').commonKeyVaultResourceId))]"
+    }
+  }
+}

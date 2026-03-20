@@ -1,0 +1,109 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "settings": {
+      "type": "secureObject",
+      "metadata": {
+        "description": "This is coming from the parameter File under Parameters"
+      }
+    },
+    "resourceNames": {
+      "type": "Object",
+      "metadata": {
+        "description": "This is coming from the parameter File under Parameters"
+      }
+    },
+    "date": {
+      "type": "string",
+      "defaultValue": "[utcNow()]"
+    }
+  },
+  "variables": {
+  },
+  "resources": [
+    {
+      "name": "[concat('createAPIMPublicEndPoint-', parameters('date'))]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonNetworkResourceGroupName]",
+      "apiVersion": "2022-09-01",
+      "dependsOn": [
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'factory-front-door-public-endpoint-publisher', '/versions/v1')]"
+        },
+        "parameters": {
+          "settings": {
+            "value": "[parameters('settings')]"
+          },
+          "resourceNames": {
+            "value": "[parameters('resourceNames')]"
+          },
+          "cdnProfileName": {
+            "value": "[parameters('resourceNames').primaryCdnProfileName]"
+          },
+          "cdnProfileOriginGroupName": {
+            "value": "apim-origin-group"
+          },
+          "cdnProfileOriginGroupOriginName": {
+            "value": "[concat(parameters('resourceNames').baseName,parameters('resourceNames').environment,'apim')]"
+          },
+          "hostName": {
+            "value": "[concat('invp',take(parameters('resourceNames').environment,3),'apim-',parameters('settings').common.region,'-01.regional.azure-api.net')]"
+          },
+          "originHostHeader": {
+            "value": "[concat('invp',take(parameters('resourceNames').environment,3),'apim-',parameters('settings').common.region,'-01.regional.azure-api.net')]"
+          },
+          "originWeight": {
+            "value": "[parameters('settings').commonNetwork.frontDoorConfig.originWeight]"
+          },
+          "enforceCertificateNameCheck": {
+            "value": false
+          },
+          "probePath": {
+            "value": "/probe"
+          },
+          "probeProtocol": {
+            "value": "Https"
+          },
+          "probeRequestType": {
+            "value": "GET"
+          },
+          "afdEndPointName": {
+            "value": "[tolower(concat(parameters('settings').commonNetwork.frontDoorConfig.endPointsConfiguration[0].mainServiceName,parameters('settings').commonNetwork.frontDoorConfig.endPointsConfiguration[0].serviceRoleName,parameters('resourceNames').environment))]"
+          },
+          "routeName": {
+            "value": "apim-route"
+          },
+          "customDomains": {
+            "value": [
+              {
+                "id": "[concat('/subscriptions/',subscription().subscriptionId,'/resourceGroups/',parameters('resourceNames').commonNetworkResourceGroupName,'/providers/Microsoft.Cdn/profiles/',parameters('resourceNames').primaryCdnProfileName,'/customdomains/',replace(tolower(concat(parameters('settings').commonNetwork.frontDoorConfig.endPointsConfiguration[0].mainServiceName,'.',parameters('settings').commonNetwork.frontDoorConfig.endPointsConfiguration[0].serviceRoleName,'.',parameters('resourceNames').environment,'.',parameters('settings').commonNetwork.frontDoorConfig.endPointsConfiguration[0].domainName)),'.','-'))]"
+              }
+            ]
+          },
+          "originGroupResourceId": {
+            "value": {
+              "id": "[concat('/subscriptions/',subscription().subscriptionId,'/resourceGroups/',parameters('resourceNames').commonNetworkResourceGroupName,'/providers/Microsoft.Cdn/profiles/',parameters('resourceNames').primaryCdnProfileName,'/origingroups/','apim-origin-group')]"
+            }
+          },
+          "ruleSets": {
+            "value": []
+          },
+          "supportedProtocols": {
+            "value": [ "Http", "Https" ]
+          },
+          "patternsToMatch": {
+            "value": [
+              "/*"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "outputs": {
+  }
+}

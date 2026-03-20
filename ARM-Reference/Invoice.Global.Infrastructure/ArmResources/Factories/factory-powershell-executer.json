@@ -1,0 +1,89 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "artifactsSaBaseUri": {
+      "type": "string"
+    },
+    "artifactsSaSasToken": {
+      "type": "securestring"
+    },
+    "vmName": {
+      "type": "string",
+      "minLength": 3,
+      "metadata": {
+        "description": "Name for the Virtual Machine."
+      }
+    },
+    "vmRegion": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Specifies the location of the Vm where the scripts need to be executed"
+      }
+    },
+    "listOfScripts": {
+      "type": "array",
+      "metadata": {
+        "description": [
+          {
+            "powershellFileName": "PostSQLServerConfiguration.ps1",
+            "powershellParameters": "[concat('-StartupParameters ', '\"-T9348\"', ' -EnableDtc $true')]",
+            "isExecute": true
+          },
+          {
+            "powershellFileName": "EnableSQLIntransitEncryption.ps1",
+            "powershellParameters": "[concat('-SQLServiceAccount ','redmond\\testaccount', '-Verbose')]",
+            "isExecute": false
+          }
+        ]
+      }
+    },
+    "resourceNames": {
+      "type": "Object",
+      "metadata": {
+        "description": "This is coming from the parameter File under Parameters"
+      }
+    }
+  },
+  "variables": {
+  },
+  "resources": [
+    {
+      "condition": "[parameters('listOfScripts') [copyIndex()].isExecute]",
+      "name": "[concat(parameters('vmName'),'-Execute-',parameters('listOfScripts') [copyIndex()].powershellFileName, '-', copyindex(1))]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2020-06-01",
+      "copy": {
+        "name": "ExecuteScriptsLoop",
+        "mode": "serial",
+        "count": "[length(parameters('listOfScripts'))]"
+      },
+      "dependsOn": [
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'VMExtensions-template-vm-extension-ps-script', '/versions/v1')]"
+        },
+        "parameters": {
+          "vmName": {
+            "value": "[parameters('vmName')]"
+          },
+          "location": {
+            "value": "[parameters('vmRegion')]"
+          },
+          "powershellFileName": {
+            "value": "[parameters('listOfScripts') [copyIndex()].powershellFileName]"
+          },
+          "powershellParameters": {
+            "value": "[parameters('listOfScripts') [copyIndex()].powershellParameters]"
+          },
+          "powershellFileBlobUrl": {
+            "value": "[concat(parameters('artifactsSaBaseUri'),parameters('resourceNames').scriptsTemplatePath, parameters('listOfScripts') [copyIndex()].powershellFileName, parameters('artifactsSaSasToken'))]"
+          }
+        }
+      }
+    }
+  ]
+}

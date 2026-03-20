@@ -1,0 +1,287 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "settings": {
+      "type": "secureObject",
+      "metadata": {
+        "description": "This is coming from the parameter File under Parameters"
+      }
+    },
+    "resourceNames": {
+      "type": "Object",
+      "metadata": {
+        "description": "This is coming from the parameter File under Parameters"
+      }
+    },
+    "storageConnectionString": {
+      "type": "securestring"
+    },
+    "appInsightsInstrumentationKey": {
+      "type": "securestring"
+    },
+    "date": {
+      "type": "string",
+      "defaultValue": "[utcNow()]"
+    }
+  },
+  "variables": {
+    "baseTemplatePath": "/BaseTemplates/",
+    "commonKeyvaultName": "[tolower(concat(parameters('resourceNames').keyVaultBaseName,parameters('settings').common.tag))]",
+    "commonKeyvaultSecrets_uri": "[concat('@Microsoft.KeyVault(SecretUri=https://', variables('commonKeyvaultName'), '.vault.azure.net/secrets/')]",
+    "storageAccountName": "[concat(parameters('resourceNames').storageAccountBaseName, parameters('settings').digitalSignatureService.tag)]",
+    "functionAppName": "[concat(parameters('resourceNames').functionAppBaseName,parameters('settings').digitalSignatureService.tag)]",
+    "functionSettings": {
+      "settings": [
+        {
+          "name": "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING",
+          "value": "[if(parameters('settings').digitalSignatureService.isFirstDeployment, parameters('storageConnectionString'), concat(variables('commonKeyvaultSecrets_uri'), 'kv-', parameters('resourceNames').functionsStorageAccountName, '-ConnectionString', '/)'))]"
+        },
+        {
+          "name": "WEBSITE_RUN_FROM_PACKAGE",
+          "value": "1"
+        },
+        {
+          "name": "AzureWebJobsDashboard",
+          "value": "[if(parameters('settings').digitalSignatureService.isFirstDeployment, parameters('storageConnectionString'), concat(variables('commonKeyvaultSecrets_uri'), 'kv-', parameters('resourceNames').functionsStorageAccountName, '-ConnectionString', '/)'))]"
+        },
+        {
+          "name": "AzureWebJobsStorage",
+          "value": "[if(parameters('settings').digitalSignatureService.isFirstDeployment, parameters('storageConnectionString'), concat(variables('commonKeyvaultSecrets_uri'), 'kv-', parameters('resourceNames').functionsStorageAccountName, '-ConnectionString', '/)'))]"
+        },
+        {
+          "name": "StorageAccountKey",
+          "value": "[concat(variables('commonKeyvaultSecrets_uri'), 'kv-', parameters('resourceNames').storageAccountBaseName, parameters('settings').digitalSignatureService.tag, '-PrimaryKey', '/)')]"
+        },
+        {
+          "name": "StorageAccountName",
+          "value": "[concat(parameters('resourceNames').storageAccountBaseName, parameters('settings').digitalSignatureService.tag)]"
+        },
+        {
+          "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+          "value": "[parameters('appInsightsInstrumentationKey')]"
+        },
+        {
+          "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+          "value": "[concat('InstrumentationKey=', parameters('appInsightsInstrumentationKey'))]"
+        },
+        {
+          "name": "ApplicationInsightsAgent_EXTENSION_VERSION",
+          "value": "~2"
+        },
+        {
+          "name": "WEBSITE_CONTENTSHARE",
+          "value": "[toLower(variables('functionAppName'))]"
+        },
+        {
+          "name": "FUNCTIONS_EXTENSION_VERSION",
+          "value": "~4"
+        },
+        {
+          "name": "WEBSITE_NODE_DEFAULT_VERSION",
+          "value": "8.11.1"
+        },
+        {
+          "name": "WEBSITE_LOAD_CERTIFICATES",
+          "value": "*"
+        },
+        {
+          "name": "FUNCTIONS_WORKER_RUNTIME",
+          "value": "dotnet"
+        },
+        {
+          "name": "AZURE_FUNCTIONS_ENVIRONMENT",
+          "value": "[toUpper(parameters('resourceNames').environment)]"
+        },
+        {
+          "name": "Environment",
+          "value": "[parameters('resourceNames').environment]"
+        }
+      ]
+    },
+    "networkAclIpRules": [
+      {
+        "comment": "SAW Range IPv4 (legacy) from https://microsoft.sharepoint.com/sites/Security_Tools_Services/SitePages/SAS/SAW%20KB/SAW-datacenter-IP-ranges.aspx",
+        "value": "207.68.190.32/27"
+      },
+      {
+        "comment": "SAW Range IPv4 range (E3+) from https://microsoft.sharepoint.com/sites/Security_Tools_Services/SitePages/SAS/SAW%20KB/SAW-datacenter-IP-ranges.aspx",
+        "value": "157.58.216.64/26"
+      }
+    ]
+  },
+  "resources": [
+    {
+      "name": "[concat('createFunctionApp-', parameters('date'))]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').digitalSignatureServiceResourceGroupName]",
+      "apiVersion": "2022-09-01",
+      "dependsOn": [
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'template-function-network-integrated', '/versions/v1')]"
+        },
+        "parameters": { 
+          "templatespecsBaseResourceId": {
+            "value": "[parameters('resourceNames').templatespecsBaseResourceId]"
+          },
+          "location": {
+            "value": "[parameters('settings').common.region]"
+          },
+          "functionAppName": {
+            "value": "[variables('functionAppName')]"
+          },
+          "functionDelagatedSubnetName": {
+            "value": "[parameters('settings').commonNetwork.subnets[1].subnetName]"
+          },
+          "functionPrivateEndpointSubnetName": {
+            "value": "[parameters('settings').commonNetwork.subnets[2].subnetName]"
+          },
+          "functionSettings": {
+            "value": "[variables('functionSettings')]"
+          },
+          "hostingPlanResourceId": {
+            "value": "[parameters('resourceNames').functionsHostingPlanResourceId]"
+          },
+          "componentTag": {
+            "value": "[parameters('settings').digitalSignatureService.tag]"
+          },
+          "componentResourceGroupName": {
+            "value": "[parameters('resourceNames').digitalSignatureServiceResourceGroupName]"
+          },
+          "commonResourceGroupName": {
+            "value": "[parameters('resourceNames').commonResourceGroupName]"
+          },
+          "networkResourceGroupName": {
+            "value": "[parameters('resourceNames').commonNetworkResourceGroupName]"
+          },
+          "commonVirtualNetworkResourceId": {
+            "value": "[parameters('resourceNames').commonVirtualNetworkResourceId]"
+          },
+          "commonKeyvaultName": {
+            "value": "[variables('commonKeyvaultName')]"
+          },
+          "commonWorkSpaceResourceId": {
+            "value": "[parameters('resourceNames').commonWorkSpaceResourceId]"
+          },
+          "publicNetworkAccess": {
+            "value": "[parameters('settings').common.publicNetworkAccess]"
+          },
+          "roleDefinitionObjectId": {
+            "value": "[parameters('settings').secretManager.keyvaultSecretUserRoleDefinitionObjectId]"
+          }
+        }
+      }
+    },
+    {
+      "name": "CreateDSStorageAccount",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'StorageAccount-template-storageAccount', '/versions/v1')]"
+        },
+        "parameters": {
+          "StorageAccountName": {
+            "value": "[variables('storageAccountName')]"
+          },
+          "storageSKU": {
+            "value": "[parameters('settings').digitalSignatureService.storageAccountSKU]"
+          },
+          "location": {
+            "value": "[parameters('settings').common.region]"
+          },
+          "keyVaultName": {
+            "value": "[variables('commonKeyvaultName')]"
+          },
+          "keyvaultResourceGroupName": {
+            "value": "[parameters('resourceNames').commonResourceGroupName]"
+          },
+          "networkAclDefaultAction": {
+            "value": "Deny"
+          },
+          "networkAclIpRules": {
+            "value": "[variables('networkAclIpRules')]"
+          }
+        }
+      }
+    },
+    {
+      "name": "CreateTablesforDSStorageAccount",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [ "CreateDSStorageAccount" ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'StorageAccount-template-storageAccount-tables', '/versions/v1')]"
+        },
+        "parameters": {
+          "StorageAccountName": {
+            "value": "[variables('StorageAccountName')]"
+          },
+          "tableNames": {
+            "value": [ "EInvoiceEvents" ]
+          }
+        }
+      }
+    },
+    {
+      "name": "CreateDSStorageAccountPvtEndPts",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').digitalSignatureServiceResourceGroupName]",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+        "CreateTablesforDSStorageAccount"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'factory-private-endpoints', '/versions/v1')]"
+        },
+        "parameters": { 
+          "templatespecsBaseResourceId": {
+            "value": "[parameters('resourceNames').templatespecsBaseResourceId]"
+          },
+          "createDNSRecords": {
+            "value": true
+          },
+          "addPrivateEndPointPrefix": {
+            "value": true
+          },
+          "privateEndpointsDetails": {
+            "value": [
+              {
+                "resourceName": "[variables('StorageAccountName')]",
+                "resourceGroupName": "[parameters('resourceNames').digitalSignatureServiceResourceGroupName]",
+                "privateLinkServiceId": "[concat('/subscriptions/',subscription().subscriptionId,'/resourceGroups/',parameters('resourceNames').digitalSignatureServiceResourceGroupName,'/providers/Microsoft.Storage/storageAccounts/',variables('StorageAccountName'))]",
+                "virtualNetworkId": "[parameters('resourceNames').commonVirtualNetworkResourceId]",
+                "virtualNetworkSubnetName": "[parameters('settings').commonNetwork.subnets[3].subnetName]",
+                "serviceGroupNames": [ "blob" ],
+                "location": "[parameters('settings').common.region]",
+                "networkResourceGroupName": "[parameters('resourceNames').commonNetworkResourceGroupName]",
+                "privateDNSZoneName": "privatelink.blob.core.windows.net"
+              },
+              {
+                "resourceName": "[variables('StorageAccountName')]",
+                "resourceGroupName": "[parameters('resourceNames').digitalSignatureServiceResourceGroupName]",
+                "privateLinkServiceId": "[concat('/subscriptions/',subscription().subscriptionId,'/resourceGroups/',parameters('resourceNames').digitalSignatureServiceResourceGroupName,'/providers/Microsoft.Storage/storageAccounts/',variables('StorageAccountName'))]",
+                "virtualNetworkId": "[parameters('resourceNames').commonVirtualNetworkResourceId]",
+                "virtualNetworkSubnetName": "[parameters('settings').commonNetwork.subnets[3].subnetName]",
+                "serviceGroupNames": [ "table" ],
+                "location": "[parameters('settings').common.region]",
+                "networkResourceGroupName": "[parameters('resourceNames').commonNetworkResourceGroupName]",
+                "privateDNSZoneName": "privatelink.table.core.windows.net"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "outputs": {
+  }
+}

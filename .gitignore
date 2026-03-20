@@ -348,3 +348,5 @@ MigrationBackup/
 
 # Ionide (cross platform F# VS Code tools) working folder
 .ionide/
+ARM-Reference/Azure.DevOps.Infrastructure/OneBranch.PullRequest.Build.yml
+ARM-Reference/Azure.DevOps.Infrastructure/OneBranch.Official.Build.yml

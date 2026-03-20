@@ -1,0 +1,147 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "templatespecsBaseResourceId": {
+      "type": "string"
+    },
+    "serviceBusNamespace": {
+      "type": "string",
+      "metadata": {
+        "description": "The service bus name"
+      }
+    },
+    "resourceGroupName": {
+      "type": "string",
+      "metadata": {
+        "description": "The resource group name"
+      }
+    },
+    "topics": {
+      "type": "array",
+      "metadata": {
+        "description": {
+          "comments": "The required Topics and Subscriptions array objects. For each of the Topics there will be a collection of Subscriptions. See required object below.",
+          "topics": [
+            {
+              "topicName": "NameOfTopicArrayElement0",
+              "properties": {
+                "maxMessageSizeInKilobytes": 256,
+                "defaultMessageTimeToLive": "P14D",
+                "maxSizeInMegabytes": 2048,
+                "requiresDuplicateDetection": false,
+                "duplicateDetectionHistoryTimeWindow": "PT10M",
+                "enableBatchedOperations": true,
+                "status": "Active",
+                "supportOrdering": false,
+                "autoDeleteOnIdle": "P10675199DT2H48M5.4775807S",
+                "enablePartitioning": true,
+                "enableExpress": false
+              },
+              "subscriptions": [
+                {
+                  "name": "SubscriptionName0",
+                  "comments": "The properties object below contains example values.",
+                  "filterRules": [
+                    {
+                      "name": "FilterRuleName0",
+                      "comments": "The properties object below contains example values.",
+                      "properties": {
+                        "action": {},
+                        "filterType": "SqlFilter",
+                        "sqlFilter": {
+                          "sqlExpression": "user.EventType LIKE('%.Invoice.%.v1.Intake')",
+                          "compatibilityLevel": 20
+                        }
+                      }
+                    }
+                  ],
+                  "properties": {
+                    "isClientAffine": false,
+                    "lockDuration": "PT1M",
+                    "requiresSession": false,
+                    "defaultMessageTimeToLive": "P10675199DT2H48M5.4775807S",
+                    "deadLetteringOnMessageExpiration": false,
+                    "deadLetteringOnFilterEvaluationExceptions": true,
+                    "maxDeliveryCount": 10,
+                    "status": "Active",
+                    "enableBatchedOperations": true,
+                    "autoDeleteOnIdle": "P10675199DT2H48M5.4775807S"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+
+      }
+    }
+  },
+  "variables": {
+  },
+  "resources": [
+    {
+      "comments": "Using the Copy Loop functionality, loop through each topic by index to create the Service Bus Topic",
+      "name": "[concat('createTopic-', parameters('topics') [copyIndex()].topicName)]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceGroupName')]",
+      "apiVersion": "2022-09-01",
+      "copy": {
+        "name": "TopicCopy",
+        "count": "[length(parameters('topics'))]"
+      },
+      "dependsOn": [],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('templatespecsBaseResourceId'), 'ServiceBus-template-serviceBus-topic', '/versions/v1')]"
+        },
+        "parameters": {
+          "serviceBusNamespace": {
+            "value": "[parameters('serviceBusNamespace')]"
+          },
+          "topic": {
+            "value": "[parameters('topics')[copyIndex()].topicName]"
+          },
+          "topicProperties": {
+            "value": "[parameters('topics')[copyIndex()].properties]"
+          }
+        }
+      }
+    },
+    {
+      "comments": "Once the topic is created (see the dependsOn node below), the subscriptions can be created. This will pass the current index subscription collection.",
+      "name": "[concat('createSubscriptions-for-', parameters('topics') [copyIndex()].topicName)]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceGroupName')]",
+      "apiVersion": "2022-09-01",
+      "copy": {
+        "name": "SubscriptionCopy",
+        "count": "[length(parameters('topics'))]"
+      },
+      "dependsOn": [
+        "[concat('createTopic-', parameters('topics') [copyIndex()].topicName)]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('templatespecsBaseResourceId'), 'ServiceBus-factory-serviceBus-topic-subscriptions', '/versions/v1')]"
+        },
+        "parameters": { 
+          "templatespecsBaseResourceId": {
+            "value": "[parameters('templatespecsBaseResourceId')]"
+          },
+          "serviceBusNamespace": {
+            "value": "[parameters('serviceBusNamespace')]"
+          },
+          "serviceBusTopicName": {
+            "value": "[parameters('topics') [copyIndex()].topicName]"
+          },
+          "topicSubscriptions": {
+            "value": "[parameters('topics') [copyIndex()].subscriptions]"
+          }
+        }
+      }
+    }
+  ]
+}

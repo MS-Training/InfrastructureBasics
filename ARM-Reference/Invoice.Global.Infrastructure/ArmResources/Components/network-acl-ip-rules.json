@@ -1,0 +1,284 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "variables": {
+    "networkAclIpRulesConfig": {
+      "productionAllowList": [
+        {
+          "comment": "SAW Range IPv4 (legacy) from https://microsoft.sharepoint.com/sites/Security_Tools_Services/SitePages/SAS/SAW%20KB/SAW-datacenter-IP-ranges.aspx",
+          "value": "207.68.190.32/27"
+        },
+        {
+          "comment": "SAW Range IPv4 range (E3+) from https://microsoft.sharepoint.com/sites/Security_Tools_Services/SitePages/SAS/SAW%20KB/SAW-datacenter-IP-ranges.aspx",
+          "value": "157.58.216.64/26"
+        },
+        {
+          "comment": "Express Route - Quincy (West US 2) - 104.44.112.128 Staging Servers",
+          "value": "104.44.112.128/25"
+        }
+      ],
+      "lowerEnvsAllowList": [
+        {
+          "comment": "South Central US (San Antonio)",
+          "value": "20.97.10.99"
+        },
+        {
+          "comment": "South Central US (San Antonio)",
+          "value": "20.97.10.32"
+        },
+        {
+          "comment": "South Central US (San Antonio)",
+          "value": "20.97.11.107"
+        },
+        {
+          "comment": "South Central US (San Antonio)",
+          "value": "20.97.11.144"
+        },
+        {
+          "comment": "South Central US (San Antonio)",
+          "value": "20.97.11.149"
+        },
+        {
+          "comment": "South Central US (San Antonio)",
+          "value": "20.97.11.153"
+        },
+        {
+          "comment": "South Central US (San Antonio)",
+          "value": "20.97.11.158"
+        },
+        {
+          "comment": "South Central US (San Antonio)",
+          "value": "20.97.11.160"
+        },
+        {
+          "comment": "South Central US (San Antonio)",
+          "value": "20.97.11.167"
+        },
+        {
+          "comment": "South Central US (San Antonio)",
+          "value": "20.97.9.18"
+        },
+        {
+          "comment": "Southeast Asia (Singapore)",
+          "value": "4.194.122.136"
+        },
+        {
+          "comment": "Southeast Asia (Singapore)",
+          "value": "4.194.122.144"
+        },
+        {
+          "comment": "Southeast Asia (Singapore)",
+          "value": "4.194.122.162"
+        },
+        {
+          "comment": "Southeast Asia (Singapore)",
+          "value": "4.194.122.170"
+        },
+        {
+          "comment": "Southeast Asia (Singapore)",
+          "value": "4.194.122.182"
+        },
+        {
+          "comment": "Southeast Asia (Singapore)",
+          "value": "4.194.122.202"
+        },
+        {
+          "comment": "Southeast Asia (Singapore)",
+          "value": "4.194.122.226"
+        },
+        {
+          "comment": "Southeast Asia (Singapore)",
+          "value": "4.194.122.236"
+        },
+        {
+          "comment": "Southeast Asia (Singapore)",
+          "value": "4.194.122.251"
+        },
+        {
+          "comment": "Southeast Asia (Singapore)",
+          "value": "4.194.122.254"
+        },
+        {
+          "comment": "West US (Bay)",
+          "value": "40.112.192.173"
+        },
+        {
+          "comment": "West US (Bay)",
+          "value": "40.78.10.189"
+        },
+        {
+          "comment": "West US (Bay)",
+          "value": "40.78.12.133"
+        },
+        {
+          "comment": "West US (Bay)",
+          "value": "40.78.12.246"
+        },
+        {
+          "comment": "West US (Bay)",
+          "value": "40.78.13.147"
+        },
+        {
+          "comment": "West US (Bay)",
+          "value": "40.78.13.173"
+        },
+        {
+          "comment": "West US (Bay)",
+          "value": "40.78.4.132"
+        },
+        {
+          "comment": "West US (Bay)",
+          "value": "40.78.4.249"
+        },
+        {
+          "comment": "West US (Bay)",
+          "value": "40.78.5.63"
+        },
+        {
+          "comment": "West US (Bay)",
+          "value": "40.78.5.84"
+        },
+        {
+          "comment": "East US (Boydton)",
+          "value": "172.171.236.24"
+        },
+        {
+          "comment": "East US 2 (Boydton)",
+          "value": "172.172.34.115"
+        },
+        {
+          "comment": "East US 2 (Boydton)",
+          "value": "172.172.34.12"
+        },
+        {
+          "comment": "East US 2 (Boydton)",
+          "value": "172.200.70.13"
+        },
+        {
+          "comment": "East US 2 (Boydton)",
+          "value": "172.200.70.35"
+        },
+        {
+          "comment": "East US 2 (Boydton)",
+          "value": "172.200.70.89"
+        },
+        {
+          "comment": "East US 2 (Boydton)",
+          "value": "20.1.167.57"
+        },
+        {
+          "comment": "East US 2 (Boydton)",
+          "value": "20.1.194.235"
+        },
+        {
+          "comment": "East US 2 (Boydton)",
+          "value": "20.110.218.7"
+        },
+        {
+          "comment": "East US 2 (Boydton)",
+          "value": "20.114.144.49"
+        },
+        {
+          "comment": "East US 2 (Boydton)",
+          "value": "20.230.14.159"
+        },
+        {
+          "comment": "East US 2 (Azure VPN)",
+          "value": "52.167.112.163"
+        },
+        {
+          "comment": "East US 2 (Azure VPN)",
+          "value": "52.177.6.131"
+        },
+        {
+          "comment": "East US 2 (Azure VPN)",
+          "value": "52.177.6.190"
+        },
+        {
+          "comment": "East US 2 (Azure VPN)",
+          "value": "52.177.6.198"
+        },
+        {
+          "comment": "East US 2 (Azure VPN)",
+          "value": "52.179.129.152"
+        },
+        {
+          "comment": "East US 2 (Azure VPN)",
+          "value": "52.167.115.14"
+        },
+        {
+          "comment": "West US 2 (Quincy)",
+          "value": "20.236.10.120"
+        },
+        {
+          "comment": "West US 2 (Quincy)",
+          "value": "20.236.10.129"
+        },
+        {
+          "comment": "West US 2 (Quincy)",
+          "value": "20.236.10.163"
+        },
+        {
+          "comment": "West US 2 (Quincy)",
+          "value": "20.236.10.206"
+        },
+        {
+          "comment": "West US 2 (Quincy)",
+          "value": "20.236.10.66"
+        },
+        {
+          "comment": "West US 2 (Quincy)",
+          "value": "20.236.11.102"
+        },
+        {
+          "comment": "West US 2 (Quincy)",
+          "value": "20.236.11.185"
+        },
+        {
+          "comment": "West US 2 (Quincy)",
+          "value": "20.236.11.29"
+        },
+        {
+          "comment": "West US 2 (Quincy)",
+          "value": "20.236.11.42"
+        },
+        {
+          "comment": "West US 2 (Quincy)",
+          "value": "20.236.11.69"
+        },
+        {
+          "comment": "West US 2 (Quincy)",
+          "value": "20.29.225.195"
+        },
+        {
+          "comment": "West US 2 (Azure VPN)",
+          "value": "20.191.74.188"
+        },
+        {
+          "comment": "West US 2 (Azure VPN)",
+          "value": "40.65.108.177"
+        },
+        {
+          "comment": "West US 2 (Azure VPN)",
+          "value": "52.148.138.235"
+        },
+        {
+          "comment": "West US 2 (Azure VPN)",
+          "value": "52.148.140.42"
+        },
+        {
+          "comment": "West US 2 (Azure VPN)",
+          "value": "52.148.171.5"
+        }
+      ],
+      "nothing": []
+    }
+  },
+  "resources": [],
+  "outputs": {
+    "networkAclIpRulesConfig": {
+      "type": "object",
+      "value": "[variables('networkAclIpRulesConfig')]"
+    }
+  }
+}

@@ -1,0 +1,51 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+  "contentVersion": "1.0.0.1",
+  "parameters": {
+    "resourceGroupNames": {
+      "type": "array"
+    },
+    "environment": {
+      "defaultValue": "dev",
+      "type": "string",
+      "maxLength": 6,
+      "metadata": {
+        "description": "Abbreviation string to define the environment i.e dev, int, ppe, prd"
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "westus2"
+    },
+    "componentId": {
+      "defaultValue": "f97fb69f-f120-474f-8c62-3bffec8a6bdb",
+      "type": "string",
+      "metadata": {
+        "description": "The Component id. i.e f97fb69f-f120-474f-8c62-3bffec8a6bdb"
+      }
+    }
+  },
+  "variables": {
+  },
+  "resources": [
+    {
+      "condition": "[contains(toUpper(parameters('resourceGroupNames')[copyIndex()]),'RG')]",
+      "type": "Microsoft.Resources/resourceGroups",
+      "apiVersion": "2018-05-01",
+      "location": "[parameters('location')]",
+      "name": "[toupper(parameters('resourceGroupNames')[copyIndex()])]",
+      "tags": {
+        "Env": "[if(contains(tolower(parameters('environment')),'prd'),'Production','Pre-Production')]",
+        "ComponentID": "[parameters('componentId')]"
+      },
+      "properties": {},
+      "copy": {
+        "name": "createResourceGroups",
+        "count": "[length(parameters('resourceGroupNames'))]"
+      }
+    }
+  ],
+  "outputs": {
+  }
+
+}

@@ -4,7 +4,7 @@
 /////////////////////////////////////////////////////
 // Type imports
 /////////////////////////////////////////////////////
-import { VirtualNetworkLinkType } from '../types.bicep'
+import { virtualNetworkOutputType } from '../types.bicep'
 
 
 @description('The Secure Object that contains the settings to be passed to the module')
@@ -15,7 +15,7 @@ param settings object
 param zoneName string
 
 @description('VNet to link to this Private DNS Zone')
-param virtualNetworkLink VirtualNetworkLinkType
+param virtualNetworkLink virtualNetworkOutputType
 
 
 
@@ -37,14 +37,14 @@ resource PrivateDnsZone 'Microsoft.Network/privateDnsZones@2024-06-01' = {
 ////////////////////////////
 resource VNetLink 'Microsoft.Network/privateDnsZones/virtualNetworkLinks@2024-06-01' = {
   parent: PrivateDnsZone
-  name: virtualNetworkLink.name
+  name: virtualNetworkLink.vnetName
   location: 'global'
   tags: settings.standardTags
   properties: {
     virtualNetwork: {
-      id: virtualNetworkLink.virtualNetworkId
+      id: virtualNetworkLink.vnetId
     }
-    registrationEnabled: virtualNetworkLink.?registrationEnabled ?? false
+    registrationEnabled: virtualNetworkLink?.registrationEnabled ?? false
   }
 }
 

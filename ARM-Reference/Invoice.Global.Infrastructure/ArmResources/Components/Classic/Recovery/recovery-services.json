@@ -1,0 +1,167 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "settings": {
+      "type": "secureObject",
+      "metadata": {
+        "description": "This is coming from the parameter File under Parameters"
+      }
+    },
+    "resourceNames": {
+      "type": "Object",
+      "metadata": {
+        "description": "This is coming from the parameter File under Parameters"
+      }
+    }
+  },
+  "variables": {
+    "factoryTemplatePath": "/Factories/",
+    "networkAclIpRules": [
+      {
+        "comment": "SAW Range IPv4 (legacy) from https://microsoft.sharepoint.com/sites/Security_Tools_Services/SitePages/SAS/SAW%20KB/SAW-datacenter-IP-ranges.aspx",
+        "value": "207.68.190.32/27"
+      },
+      {
+        "comment": "SAW Range IPv4 range (E3+) from https://microsoft.sharepoint.com/sites/Security_Tools_Services/SitePages/SAS/SAW%20KB/SAW-datacenter-IP-ranges.aspx",
+        "value": "157.58.216.64/26"
+      }
+    ]
+  },
+  "resources": [
+    {
+      "name": "createAzureSiteRecovery",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').asrResourceGroupName]",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'RecoveryServices-template-recoveryVault', '/versions/v1')]"
+        },
+        "parameters": {
+          "recoveryVaultName": {
+            "value": "[parameters('resourceNames').recoveryVaultName]"
+          },
+          "vaultStorageType": {
+            "value": "[parameters('settings').recoveryServices.vaultStorageType]"
+          },
+          "workspaceResourceId": {
+            "value": "[parameters('resourceNames').workspaceId]"
+          },
+          "logsRetentionDays": {
+            "value": "[parameters('settings').recoveryServices.logsRetentionDays]"
+          }
+        }
+      }
+    },
+    {
+      "name": "[concat(parameters('settings').recoveryServices.asrStorageAccounts[copyIndex('createASRStorageAccounts')].storageAccountName,'-createAsrStorage')]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').asrResourceGroupName]",
+      "apiVersion": "2020-06-01",
+      "copy": {
+        "name": "createASRStorageAccounts",
+        "count": "[length(parameters('settings').recoveryServices.asrStorageAccounts)]"
+      },
+      "dependsOn": [
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'factory-storageaccounts', '/versions/v1')]"
+        },
+        "parameters": {
+          "storageAccount": {
+            "value": "[parameters('settings').recoveryServices.asrStorageAccounts[copyIndex('createASRStorageAccounts')]]"
+          },
+          "storageAccountBaseName": {
+            "value": "[parameters('resourceNames').storageAccountBaseName]"
+          },
+          "templatespecsBaseResourceId": {
+            "value": "[parameters('resourceNames').templatespecsBaseResourceId]"
+          },
+          "keyvaultResourceGroupName": {
+            "value": "[parameters('resourceNames').commonResourceGroupName]"
+          },
+          "networkAclIpRules": {
+            "value": "[variables('networkAclIpRules')]"
+          }
+        }
+      }
+    },
+    {
+      "name": "createAutomationAccount",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').asrResourceGroupName]",
+      "apiVersion": "2020-06-01",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'AutomationAccount-template-automationAccount', '/versions/v1')]"
+        },
+        "parameters": {
+          "automationAccountName": {
+            "value": "[concat(parameters('resourceNames').automationAccountName,'asr')]"
+          },
+          "location": {
+            "value": "[parameters('settings').common.region]"
+          },
+          "workspaceId": {
+            "value": "[parameters('resourceNames').workspaceId]"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[parameters('settings').recoveryServices.isFirstDeployment]",
+      "name": "[concat(parameters('settings').recoveryServices.asrStorageAccounts[copyIndex('createAsrSaPvtEndPtsLoop')].storageAccountName,'-createAsrSaPvtEndPts')]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').asrResourceGroupName]",
+      "apiVersion": "2020-06-01",
+      "copy": {
+        "name": "createAsrSaPvtEndPtsLoop",
+        "count": "[length(parameters('settings').recoveryServices.asrStorageAccounts)]"
+      },
+      "dependsOn": [
+        "createASRStorageAccounts"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'factory-private-endpoints', '/versions/v1')]"
+        },
+        "parameters": { 
+          "templatespecsBaseResourceId": {
+            "value": "[parameters('resourceNames').templatespecsBaseResourceId]"
+          },
+          "privateEndpointsDetails": {
+            "value": [
+              {
+                "resourceName": "[concat(if(equals(tolower(parameters('settings').recoveryServices.asrStorageAccounts[copyIndex('createAsrSaPvtEndPtsLoop')].storageAccountName),'dynamic'),
+                                             concat(parameters('resourceNames').storageAccountBaseName,parameters('settings').recoveryServices.asrStorageAccounts[copyIndex('createAsrSaPvtEndPtsLoop')].tag),
+                                             parameters('settings').recoveryServices.asrStorageAccounts[copyIndex('createAsrSaPvtEndPtsLoop')].storageAccountName),
+                                          if(equals(parameters('settings').recoveryServices.asrStorageAccounts[copyIndex('createAsrSaPvtEndPtsLoop')].numberOfInstances,1),'', copyindex(1)))]",
+                "resourceGroupName": "[parameters('resourceNames').asrResourceGroupName]",
+                "privateLinkServiceId": "[concat('/subscriptions/',subscription().subscriptionId,'/resourceGroups/',parameters('resourceNames').asrResourceGroupName,'/providers/Microsoft.Storage/storageAccounts/',concat(if(equals(tolower(parameters('settings').recoveryServices.asrStorageAccounts[copyIndex('createAsrSaPvtEndPtsLoop')].storageAccountName),'dynamic'),
+                                                                                                                                                                                                                                  concat(parameters('resourceNames').storageAccountBaseName,parameters('settings').recoveryServices.asrStorageAccounts[copyIndex('createAsrSaPvtEndPtsLoop')].tag),
+                                                                                                                                                                                                                                  parameters('settings').recoveryServices.asrStorageAccounts[copyIndex('createAsrSaPvtEndPtsLoop')].storageAccountName),
+                                                                                                                                                                                                                                if(equals(parameters('settings').recoveryServices.asrStorageAccounts[copyIndex('createAsrSaPvtEndPtsLoop')].numberOfInstances,1),'', copyindex(1))))]",
+                "virtualNetworkId": "[concat('/subscriptions/',subscription().subscriptionId,'/resourceGroups/',parameters('settings').recoveryServices.storageVnetResourceGroupName,'/providers/Microsoft.Network/virtualnetworks/',parameters('settings').recoveryServices.storageVirtualNetworkName)]",
+                "virtualNetworkSubnetName": "Subnet-1",
+                "serviceGroupNames": [ "blob" ],
+                "location": "[parameters('settings').recoveryServices.asrStorageAccounts[copyIndex('createAsrSaPvtEndPtsLoop')].location]",
+                "networkResourceGroupName": "N/A",
+                "privateDNSZoneName": "N/A"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "outputs": {
+  }
+}

@@ -1,0 +1,41 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "savedSearchDetails": {
+      "type": "array"
+    },
+    "workspaceName": {
+      "type": "string",
+      "metadata": {
+        "description": "Workspace name"
+      }
+    }
+  },
+  "variables": {
+  },
+  "resources": [
+    {
+      "name": "[concat(parameters('workspaceName'), '/', parameters('savedSearchDetails')[copyIndex()].name)]",
+      "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+      "apiVersion": "2020-03-01-preview",
+      "dependsOn": [
+      ],
+      "copy": {
+        "name": "AddNewSavedSearchLoop",
+        "mode": "Serial",
+        "count": "[length(parameters('savedSearchDetails'))]"
+      },
+      "properties": {
+        "etag": "*",
+        "Category": "[parameters('savedSearchDetails')[copyIndex()].category]",
+        "DisplayName": "[parameters('savedSearchDetails')[copyIndex()].name]",
+        "Query": "[parameters('savedSearchDetails')[copyIndex()].query]",
+        "FunctionAlias": "[parameters('savedSearchDetails')[copyIndex()].functionAlias]",
+        "Tags": "[parameters('savedSearchDetails')[copyIndex()].tags]"
+      }
+    }
+  ],
+  "outputs": {
+  }
+}

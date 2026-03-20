@@ -1,0 +1,544 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "deploymentFlags": {
+      "type": "Object",
+      "metadata": {
+        "description": "This is the parameter file under parameters folder"
+      }
+    },
+    "settings": {
+      "type": "secureObject",
+      "metadata": {
+        "description": "This is coming from the parameter File under Parameters"
+      }
+    },
+    "resourceNames": {
+      "type": "Object",
+      "metadata": {
+        "description": "This is coming from the parameter File under Parameters"
+      }
+    },
+    "date": {
+      "type": "string",
+      "defaultValue": "[utcNow()]"
+    },
+    "networkAclIpRulesConfig": {
+      "type": "Object",
+      "metadata": {
+        "description": "This is coming from the parameter File under Parameters"
+      }
+    }
+  },
+  "variables": {
+    "factoryTemplatePath": "/Factories/",
+    "keyVaultName": "[tolower(concat(parameters('resourceNames').keyVaultBaseName,parameters('settings').common.tag))]",
+    "functionsHostingPlanName": "[concat(parameters('resourceNames').hostingPlanBaseName,'functions')]",
+    "workspaceName": "[tolower(concat(parameters('resourceNames').workspaceBaseName,parameters('settings').common.tag))]",
+    "managedIdentityName": "[tolower(concat(parameters('resourceNames').managedIdentityBaseName,parameters('settings').common.tag))]",
+    "appInsightsName": "[tolower(concat(parameters('resourceNames').appInsightsBaseName,parameters('settings').common.tag))]",
+    "cognitiveServiceName": "[tolower(concat(parameters('resourceNames').cognitiveServiceBaseName,parameters('settings').common.tag))]",
+    "serviceGroupNames": [
+      "vault"
+    ],
+    "comments": "The keyvault firewall is set to Allow in this file, dont change it. This setting will be set from the release definition. It will open the firewall and at the end of the deployment it will be close."
+  },
+  "resources": [
+    {
+      "condition": "[parameters('deploymentFlags').isNewEnvironment]",
+      "name": "createApplicationKeyVault",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonResourceGroupName]",
+      "apiVersion": "2020-06-01",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'KeyVault-template-keyVault', '/versions/v1')]"
+        },
+        "parameters": {
+          "keyVaultName": {
+            "value": "[variables('keyVaultName')]"
+          },
+          "enableRbacAuthorization": {
+            "value": "[if(parameters('deploymentFlags').isNewEnvironment, false(), true())]"
+          },
+          "enabledForDiskEncryption": {
+            "value": false
+          },
+          "networkAclDefaultAction": {
+            "value": "Allow"
+          },
+          "networkAclIpRules": {
+            "value": "[if(contains(tolower(parameters('resourceNames').environment),'dev'),parameters('networkAclIpRulesConfig').lowerEnvsAllowList,
+                       if(contains(tolower(parameters('resourceNames').environment),'tst'),parameters('networkAclIpRulesConfig').lowerEnvsAllowList,
+                       if(contains(tolower(parameters('resourceNames').environment),'prd'),parameters('networkAclIpRulesConfig').productionAllowList,parameters('networkAclIpRulesConfig').nothing)))]"
+          }
+        }
+      }
+    },
+    {
+      "name": "createLogAnalytics",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonResourceGroupName]",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+        "createApplicationKeyVault"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'LogAnalytics-template-logAnalytics', '/versions/v1')]"
+        },
+        "parameters": {
+          "workspaceName": {
+            "value": "[variables('workspaceName')]"
+          },
+          "location": {
+            "value": "[parameters('settings').common.logAnalyticsLocation]"
+          },
+          "keyVaultName": {
+            "value": "[variables('keyVaultName')]"
+          },
+          "dataRetention": {
+            "value": "[parameters('settings').common.logAnalyticsRetentionDays]"
+          }
+        }
+      }
+    },
+    {
+      "name": "addWindowsUpdateSolution",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonResourceGroupName]",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+        "createLogAnalytics"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'LogAnalytics-template-logAnalytics-solutions', '/versions/v1')]"
+        },
+        "parameters": {
+          "workspaceName": {
+            "value": "[variables('workspaceName')]"
+          },
+          "location": {
+            "value": "[parameters('settings').common.logAnalyticsLocation]"
+          },
+          "solutionProductName": {
+            "value": "Updates"
+          },
+          "publisher": {
+            "value": "Microsoft"
+          }
+        }
+      }
+    },
+    {
+      "name": "createManagedIdentity",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonResourceGroupName]",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+        "createApplicationKeyVault"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'Identity-template-managed-identity', '/versions/v1')]"
+        },
+        "parameters": {
+          "managedIdentityName": {
+            "value": "[variables('managedIdentityName')]"
+          },
+          "keyVaultName": {
+            "value": "[variables('keyVaultName')]"
+          }
+        }
+      }
+    },
+    {
+      "name": "diagnosysStorageAccount",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonResourceGroupName]",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+        "createApplicationKeyVault"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'StorageAccount-template-storageAccount', '/versions/v1')]"
+        },
+        "parameters": {
+          "storageAccountName": {
+            "value": "[parameters('resourceNames').diagnosysStorageAccountName]"
+          },
+          "storageSKU": {
+            "value": "[parameters('settings').common.storageAccountSKU]"
+          },
+          "networkAclDefaultAction": {
+            "value": "Allow"
+          },
+          "allowSharedKeyAccess": {
+            "value": false
+          },
+          "networkAclIpRules": {
+            "value": "[if(contains(tolower(parameters('resourceNames').environment),'dev'),parameters('networkAclIpRulesConfig').lowerEnvsAllowList,
+                       if(contains(tolower(parameters('resourceNames').environment),'tst'),parameters('networkAclIpRulesConfig').lowerEnvsAllowList,
+                       if(contains(tolower(parameters('resourceNames').environment),'prd'),parameters('networkAclIpRulesConfig').productionAllowList,parameters('networkAclIpRulesConfig').nothing)))]"
+          }
+        }
+      }
+    },
+    {
+      "name": "createAppInsights",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonResourceGroupName]",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+        "createApplicationKeyVault"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'Insights-template-appInsights', '/versions/v1')]"
+        },
+        "parameters": {
+          "appInsightsName": {
+            "value": "[variables('appInsightsName')]"
+          },
+          "location": {
+            "value": "[if(equals(tolower(parameters('settings').common.region),'westcentralus'),'centralus',tolower(parameters('settings').common.region))]"
+          },
+          "keyVaultName": {
+            "value": "[variables('keyVaultName')]"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[or(parameters('deploymentFlags').isNewEnvironment,parameters('deploymentFlags').deployCommonStorage)]",
+      "name": "[concat(parameters('settings').common.storage.storageAccounts[copyIndex('createCommonStorageLoop')].storageAccountName,copyindex(1),'-createCommonStorage')]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonResourceGroupName]",
+      "apiVersion": "2020-06-01",
+      "copy": {
+        "name": "createCommonStorageLoop",
+        "count": "[length(parameters('settings').common.storage.storageAccounts)]"
+      },
+      "dependsOn": [
+        "createApplicationKeyVault"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'factory-storageaccounts', '/versions/v1')]"
+        },
+        "parameters": {
+          "storageAccount": {
+            "value": "[parameters('settings').common.storage.storageAccounts[copyIndex('createCommonStorageLoop')]]"
+          },
+          "storageAccountBaseName": {
+            "value": "[parameters('resourceNames').storageAccountBaseName]"
+          },
+          "templatespecsBaseResourceId": {
+            "value": "[parameters('resourceNames').templatespecsBaseResourceId]"
+          },
+          "keyVaultName": {
+            "value": "[if(parameters('settings').common.storage.storageAccounts[copyIndex('createCommonStorageLoop')].allowSharedKeyAccess,'Nothing',variables('keyVaultName'))]"
+          },
+          "keyvaultResourceGroupName": {
+            "value": "[if(parameters('settings').common.storage.storageAccounts[copyIndex('createCommonStorageLoop')].allowSharedKeyAccess,'Nothing',parameters('resourceNames').commonResourceGroupName)]"
+          },
+          "allowSharedKeyAccess": {
+            "value": "[parameters('settings').common.storage.storageAccounts[copyIndex('createCommonStorageLoop')].allowSharedKeyAccess]"
+          },
+          "networkAclIpRules": {
+            "value": "[if(contains(tolower(parameters('resourceNames').environment),'dev'),parameters('networkAclIpRulesConfig').lowerEnvsAllowList,
+                       if(contains(tolower(parameters('resourceNames').environment),'tst'),parameters('networkAclIpRulesConfig').lowerEnvsAllowList,
+                       if(contains(tolower(parameters('resourceNames').environment),'prd'),parameters('networkAclIpRulesConfig').productionAllowList,parameters('networkAclIpRulesConfig').nothing)))]"
+          }
+        }
+      }
+    },
+    {
+      "name": "AddKeyVaultDiagnostics",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonResourceGroupName]",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+        "createApplicationKeyVault",
+        "createLogAnalytics"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'KeyVault-template-keyVault-diagnostics', '/versions/v1')]"
+        },
+        "parameters": {
+          "keyVaultName": {
+            "value": [
+              "[variables('keyVaultName')]"
+            ]
+          },
+          "workspaceId": {
+            "value": "[parameters('resourceNames').commonWorkSpaceResourceId]"
+          },
+          "retentionDays": {
+            "value": "365"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[not(parameters('deploymentFlags').isNewEnvironment)]",
+      "name": "AddUserManagedIdentityToKvAccess",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "dependsOn": [
+        "createManagedIdentity",
+        "createApplicationKeyVault"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'Security-template-authorization-roleAssigment', '/versions/v1')]"
+        },
+        "parameters": {
+          "resourceIdToAddAccessTo": {
+            "value": "[concat('/subscriptions/',subscription().subscriptionId,'/resourceGroups/',resourceGroup().name,'/providers/Microsoft.KeyVault/vaults/',variables('keyVaultName'))]"
+          },
+          "ObjectIdToGrantAccess": {
+            "value": "[reference('createManagedIdentity').outputs.managedIdentityObjectId.value]"
+          },
+          "roleDefinitionObjectId": {
+            "value": "[parameters('settings').secretManager.keyvaultAdministratorRoleDefinitionObjectId]"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[not(parameters('deploymentFlags').isNewEnvironment)]",
+      "name": "[concat('createCommonPvtEndPts-', parameters('date'))]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonResourceGroupName]",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+        "createApplicationKeyVault",
+        "diagnosysStorageAccount"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'factory-private-endpoints', '/versions/v1')]"
+        },
+        "parameters": {
+          "templatespecsBaseResourceId": {
+            "value": "[parameters('resourceNames').templatespecsBaseResourceId]"
+          },
+          "createDNSRecords": {
+            "value": true
+          },
+          "privateEndpointsDetails": {
+            "value": [
+              {
+                "resourceName": "[variables('keyVaultName')]",
+                "resourceGroupName": "[parameters('resourceNames').commonResourceGroupName]",
+                "privateLinkServiceId": "[if(parameters('deploymentFlags').isNewEnvironment,reference('createApplicationKeyVault').outputs.keyVaultResourceId.value,parameters('resourceNames').commonKeyVaultResourceId)]",
+                "virtualNetworkId": "[parameters('resourceNames').commonVirtualNetworkResourceId]",
+                "virtualNetworkSubnetName": "[parameters('settings').commonNetwork.subnets[0].subnetName]",
+                "serviceGroupNames": "[variables('serviceGroupNames')]",
+                "location": "[parameters('settings').common.region]",
+                "networkResourceGroupName": "[parameters('resourceNames').commonNetworkResourceGroupName]",
+                "privateDNSZoneName": "privatelink.vaultcore.azure.net"
+
+              },
+              {
+                "resourceName": "[parameters('resourceNames').diagnosysStorageAccountName]",
+                "resourceGroupName": "[parameters('resourceNames').commonResourceGroupName]",
+                "privateLinkServiceId": "[concat('/subscriptions/',subscription().subscriptionId,'/resourceGroups/',parameters('resourceNames').commonResourceGroupName,'/providers/Microsoft.Storage/storageAccounts/',parameters('resourceNames').diagnosysStorageAccountName)]",
+                "virtualNetworkId": "[parameters('resourceNames').commonVirtualNetworkResourceId]",
+                "virtualNetworkSubnetName": "[parameters('settings').commonNetwork.subnets[0].subnetName]",
+                "serviceGroupNames": [ "blob" ],
+                "location": "[parameters('settings').common.region]",
+                "networkResourceGroupName": "[parameters('resourceNames').commonNetworkResourceGroupName]",
+                "privateDNSZoneName": "privatelink.blob.core.windows.net"
+              },
+              {
+                "resourceName": "[variables('cognitiveServiceName')]",
+                "resourceGroupName": "[parameters('resourceNames').commonResourceGroupName]",
+                "privateLinkServiceId": "[concat('/subscriptions/',subscription().subscriptionId,'/resourceGroups/',parameters('resourceNames').commonResourceGroupName,'/providers/Microsoft.CognitiveServices/accounts/',variables('cognitiveServiceName'))]",
+                "virtualNetworkId": "[parameters('resourceNames').commonVirtualNetworkResourceId]",
+                "virtualNetworkSubnetName": "[parameters('settings').commonNetwork.subnets[0].subnetName]",
+                "serviceGroupNames": [ "account" ],
+                "location": "[parameters('settings').common.region]",
+                "networkResourceGroupName": "[parameters('resourceNames').commonNetworkResourceGroupName]",
+                "privateDNSZoneName": "privatelink.cognitiveservices.azure.com"
+
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "[concat(parameters('settings').common.storage.storageAccounts[copyIndex('createSaPvtEndPtsLoop')].storageAccountName,copyindex(1),'-createSaPvtEndPts')]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonResourceGroupName]",
+      "apiVersion": "2020-06-01",
+      "copy": {
+        "name": "createSaPvtEndPtsLoop",
+        "count": "[length(parameters('settings').common.storage.storageAccounts)]"
+      },
+      "dependsOn": [
+        "[concat('createCommonPvtEndPts-', parameters('date'))]",
+        "createCommonStorageLoop"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'factory-private-endpoints', '/versions/v1')]"
+        },
+        "parameters": {
+          "templatespecsBaseResourceId": {
+            "value": "[parameters('resourceNames').templatespecsBaseResourceId]"
+          },
+          "createDNSRecords": {
+            "value": true
+          },
+          "privateEndpointsDetails": {
+            "value": [
+              {
+                "resourceName": "[concat(if(equals(tolower(parameters('settings').common.storage.storageAccounts[copyIndex('createSaPvtEndPtsLoop')].storageAccountName),'dynamic'),
+                                             concat(parameters('resourceNames').storageAccountBaseName,parameters('settings').common.storage.storageAccounts[copyIndex('createSaPvtEndPtsLoop')].tag),
+                                             parameters('settings').common.storage.storageAccounts[copyIndex('createSaPvtEndPtsLoop')].storageAccountName),
+                                          if(equals(parameters('settings').common.storage.storageAccounts[copyIndex('createSaPvtEndPtsLoop')].numberOfInstances,1),'', copyindex(1)))]",
+                "resourceGroupName": "[parameters('resourceNames').commonResourceGroupName]",
+                "privateLinkServiceId": "[concat('/subscriptions/',subscription().subscriptionId,'/resourceGroups/',parameters('resourceNames').commonResourceGroupName,'/providers/Microsoft.Storage/storageAccounts/',concat(if(equals(tolower(parameters('settings').common.storage.storageAccounts[copyIndex('createSaPvtEndPtsLoop')].storageAccountName),'dynamic'),
+                                                                                                                                                                                                                                  concat(parameters('resourceNames').storageAccountBaseName,parameters('settings').common.storage.storageAccounts[copyIndex('createSaPvtEndPtsLoop')].tag),
+                                                                                                                                                                                                                                  parameters('settings').common.storage.storageAccounts[copyIndex('createSaPvtEndPtsLoop')].storageAccountName),
+                                                                                                                                                                                                                                if(equals(parameters('settings').common.storage.storageAccounts[copyIndex('createSaPvtEndPtsLoop')].numberOfInstances,1),'', copyindex(1))))]",
+                "virtualNetworkId": "[parameters('resourceNames').commonVirtualNetworkResourceId]",
+                "virtualNetworkSubnetName": "[parameters('settings').commonNetwork.subnets[0].subnetName]",
+                "serviceGroupNames": [ "blob" ],
+                "location": "[parameters('settings').common.region]",
+                "networkResourceGroupName": "[parameters('resourceNames').commonNetworkResourceGroupName]",
+                "privateDNSZoneName": "privatelink.blob.core.windows.net"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "comments": "This resource needs to be created only after setting the env for first time. This is becuase the cert needs to be manually create in the kv referenced for genevaCertContent ",
+      "condition": "[Not(parameters('deploymentFlags').isNewEnvironment)]",
+      "name": "[concat('createFunctionsHostingPlan-', parameters('date'))]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonResourceGroupName]",
+      "apiVersion": "2020-06-01",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'Function-template-function-hosting-plan', '/versions/v1')]"
+        },
+        "parameters": {
+          "hostingPlanName": {
+            "value": "[variables('functionsHostingPlanName')]"
+          },
+          "location": {
+            "value": "[parameters('settings').common.region]"
+          },
+          "skuTier": {
+            "value": "[parameters('settings').common.functionsHostingPlanConfig.tier]"
+          },
+          "skuName": {
+            "value": "[parameters('settings').common.functionsHostingPlanConfig.skuName]"
+          },
+          "monitoringConfigVersion": {
+            "value": "[parameters('settings').common.functionsHostingPlanConfig.genevaAgentConfigVersion]"
+          },
+          "genevaCertContent": {
+            "reference": {
+              "keyVault": {
+                "id": "[if(parameters('deploymentFlags').isNewEnvironment,reference('createApplicationKeyVault').outputs.keyVaultResourceId.value,concat('/subscriptions/',subscription().subscriptionId,'/resourceGroups/',resourceGroup().name,'/providers/Microsoft.KeyVault/vaults/',variables('keyVaultName')))]"
+              },
+              "secretName": "[parameters('settings').common.functionsHostingPlanConfig.secretName]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "functionsStorageAccountPvtEndPts",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonResourceGroupName]",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+        "createSaPvtEndPtsLoop"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'factory-private-endpoints', '/versions/v1')]"
+        },
+        "parameters": {
+          "templatespecsBaseResourceId": {
+            "value": "[parameters('resourceNames').templatespecsBaseResourceId]"
+          },
+          "createDNSRecords": {
+            "value": true
+          },
+          "addPrivateEndPointPrefix": {
+            "value": true
+          },
+          "privateEndpointsDetails": {
+            "value": [
+              {
+                "resourceName": "[parameters('resourceNames').functionsStorageAccountName]",
+                "resourceGroupName": "[parameters('resourceNames').commonResourceGroupName]",
+                "privateLinkServiceId": "[concat('/subscriptions/',subscription().subscriptionId,'/resourceGroups/',parameters('resourceNames').commonResourceGroupName,'/providers/Microsoft.Storage/storageAccounts/',parameters('resourceNames').functionsStorageAccountName)]",
+                "virtualNetworkId": "[parameters('resourceNames').commonVirtualNetworkResourceId]",
+                "virtualNetworkSubnetName": "[parameters('settings').commonNetwork.subnets[0].subnetName]",
+                "serviceGroupNames": [ "file" ],
+                "location": "[parameters('settings').common.region]",
+                "networkResourceGroupName": "[parameters('resourceNames').commonNetworkResourceGroupName]",
+                "privateDNSZoneName": "privatelink.file.core.windows.net"
+              },
+              {
+                "resourceName": "[parameters('resourceNames').functionsStorageAccountName]",
+                "resourceGroupName": "[parameters('resourceNames').commonResourceGroupName]",
+                "privateLinkServiceId": "[concat('/subscriptions/',subscription().subscriptionId,'/resourceGroups/',parameters('resourceNames').commonResourceGroupName,'/providers/Microsoft.Storage/storageAccounts/',parameters('resourceNames').functionsStorageAccountName)]",
+                "virtualNetworkId": "[parameters('resourceNames').commonVirtualNetworkResourceId]",
+                "virtualNetworkSubnetName": "[parameters('settings').commonNetwork.subnets[0].subnetName]",
+                "serviceGroupNames": [ "queue" ],
+                "location": "[parameters('settings').common.region]",
+                "networkResourceGroupName": "[parameters('resourceNames').commonNetworkResourceGroupName]",
+                "privateDNSZoneName": "privatelink.queue.core.windows.net"
+              },
+              {
+                "resourceName": "[parameters('resourceNames').functionsStorageAccountName]",
+                "resourceGroupName": "[parameters('resourceNames').commonResourceGroupName]",
+                "privateLinkServiceId": "[concat('/subscriptions/',subscription().subscriptionId,'/resourceGroups/',parameters('resourceNames').commonResourceGroupName,'/providers/Microsoft.Storage/storageAccounts/',parameters('resourceNames').functionsStorageAccountName)]",
+                "virtualNetworkId": "[parameters('resourceNames').commonVirtualNetworkResourceId]",
+                "virtualNetworkSubnetName": "[parameters('settings').commonNetwork.subnets[0].subnetName]",
+                "serviceGroupNames": [ "table" ],
+                "location": "[parameters('settings').common.region]",
+                "networkResourceGroupName": "[parameters('resourceNames').commonNetworkResourceGroupName]",
+                "privateDNSZoneName": "privatelink.table.core.windows.net"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "commonKeyVaultResourceId": {
+      "type": "string",
+      "value": "[if(parameters('deploymentFlags').isNewEnvironment,reference('createApplicationKeyVault').outputs.keyVaultResourceId.value,'Nothing')]"
+    }
+  }
+}

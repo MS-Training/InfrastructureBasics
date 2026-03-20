@@ -1,0 +1,36 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "automationAccountName": {
+            "type": "string"
+        },
+        "location": {
+            "type": "string",
+            "metadata": {
+                "description": "Location for all resources."
+            }
+        },
+        "thumbprint": {
+            "type": "string"
+        },
+        "base64Value": {
+            "type": "securestring"
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "type": "Microsoft.Automation/automationAccounts/certificates",
+            "apiVersion": "2019-06-01",
+            "location": "[parameters('location')]",
+            "name": "[concat(parameters('automationAccountName'), '/AzureRunAsCertificate')]",
+            "properties": {
+                "description": "Default AzureRunAsCertificate. Thumbprint is provided in the parameter file, base 64 value in the release variables.",
+                "isExportable": true,
+                "thumbprint": "[parameters('thumbprint')]",
+                "base64Value": "[parameters('base64Value')]"
+            }
+        }
+    ]
+}

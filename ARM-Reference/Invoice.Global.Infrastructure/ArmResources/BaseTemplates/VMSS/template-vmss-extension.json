@@ -1,0 +1,32 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "scaleSetName": {
+      "type": "string"
+    },
+    "scaleSetRegion": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]"
+    },
+    "extensionName": {
+      "type": "string"
+    },
+    "extensionPropertiesObject": {
+      "type": "secureobject"
+    }
+  },
+  "variables": {
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Compute/virtualMachineScaleSets/extensions",
+      "name": "[concat(parameters('scaleSetName'),'/',parameters('extensionName'))]",
+      "apiVersion": "2021-11-01",
+      "location": "[parameters('scaleSetRegion')]",
+      "dependsOn": [
+      ],
+      "properties": "[parameters('extensionPropertiesObject')]"
+    }
+  ]
+}

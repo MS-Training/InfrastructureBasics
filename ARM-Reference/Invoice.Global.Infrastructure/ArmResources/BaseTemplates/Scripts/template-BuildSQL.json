@@ -1,0 +1,161 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "armTemplatesSasToken": {
+      "type": "string"
+    },
+    "armTemplateURI": {
+      "type": "string",
+      "metadata": {
+        "description": "The Url of the storage account and Container where your Resources are stored"
+      }
+    },
+    "vmName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the existing VM to apply the DSC configuration to"
+      }
+    },
+    "DiskConfig": {
+      "type": "string",
+      "metadata": {
+        "description": "IIS/SQLStd, SQLPrem/Win"
+      }
+    },
+    "vmSize": {
+      "type": "string",
+      "defaultValue": "Standard_A2"
+    },
+    "SQLServerAccount": {
+      "type": "string",
+      "minLength": 1,
+      "metadata": {
+        "description": "Account for SQL Server"
+      }
+    },
+    "SQLServerPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Password for SQL Server"
+      }
+    },
+    "SQLAgentAccount": {
+      "type": "string",
+      "minLength": 1,
+      "metadata": {
+        "description": "Account for SQL Agent"
+      }
+    },
+    "SQLAgentPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Password for SQL Agent"
+      }
+    },
+    "SQLAdmin": {
+      "type": "string",
+      "minLength": 1,
+      "metadata": {
+        "description": "Account for SQL Acccess"
+      }
+    },
+    "SQLAdminPwd": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Password for SQL Access"
+      }
+    },
+    "vmRegion": {
+      "type": "string",
+      "minLength": 1,
+      "metadata": {
+        "description": "Location for all resources."
+      }
+    },
+    "setSQLServiceAccount": {
+      "type": "bool",
+      "defaultValue": true
+    }
+  },
+  "variables": {
+    "scriptsTemplatePath": "/Scripts/",
+    "configurationFunction": "ConfigureSQLServer.ps1\\DeploySQLServer",
+    "SQLStdDisk": {
+      "vmSize": "[parameters('vmSize')]",
+      "SQLServer": {
+        "DataPath": "H:\\MSSqlServer\\MSSQL\\DATA",
+        "SysDataPath": "H:\\MSSqlServer\\MSSQL\\DATA",
+        "LogPath": "O:\\MSSqlServer\\MSSQL\\DATA",
+        "TempDbPath": "D:\\MSSqlServer\\MSSQL\\DATA"
+      }
+    },
+    "SQLPremDisk": {
+      "vmSize": "[parameters('vmSize')]",
+      "SQLServer": {
+        "DataPath": "H:\\MSSqlServer\\MSSQL\\DATA",
+        "SysDataPath": "M:\\MSSqlServer\\MSSQL\\DATA",
+        "LogPath": "O:\\MSSqlServer\\MSSQL\\DATA",
+        "TempDbPath": "D:\\MSSqlServer\\MSSQL\\DATA"
+      }
+    },
+    "SQLStdSSDDisk": {
+      "vmSize": "[parameters('vmSize')]",
+      "SQLServer": {
+        "DataPath": "H:\\MSSqlServer\\MSSQL\\DATA",
+        "SysDataPath": "H:\\MSSqlServer\\MSSQL\\DATA",
+        "LogPath": "O:\\MSSqlServer\\MSSQL\\DATA",
+        "TempDbPath": "D:\\MSSqlServer\\MSSQL\\DATA"
+      }
+    },
+    "DiskSKU": "[variables(concat(parameters('DiskConfig'),'Disk'))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "name": "[concat(parameters('vmName'),'/DSCExtension')]",
+      "apiVersion": "2015-06-15",
+      "location": "[parameters('vmRegion')]",
+      "properties": {
+        "publisher": "Microsoft.Powershell",
+        "type": "DSC",
+        "typeHandlerVersion": "2.18",
+        "autoUpgradeMinorVersion": true,
+        "forceUpdateTag": "1",
+        "settings": {
+          "ModulesUrl": "[concat(parameters('armTemplateURI'), variables('scriptsTemplatePath'), 'ConfigureSQLServer.ps1.zip', parameters('armTemplatesSasToken'))]",
+          "SasToken": "",
+          "ConfigurationFunction": "[variables('configurationFunction')]",
+          "Properties": {
+            "DataPath": "[variables('DiskSKU').SQLServer.DataPath]",
+            "SysDataPath": "[variables('DiskSKU').SQLServer.SysDataPath]",
+            "LogPath": "[variables('DiskSKU').SQLServer.LogPath]",
+            "TempDBPath": "[variables('DiskSKU').SQLServer.TempDBPath]",
+            "SQLServerAcct": {
+              "UserName": "[parameters('SQLServerAccount')]",
+              "Password": "PrivateSettingsRef:SQLSvcAcctPWD"
+            },
+            "SQLAgentAcct": {
+              "UserName": "[parameters('SQLAgentAccount')]",
+              "Password": "PrivateSettingsRef:SQLAgentPWD"
+            },
+            "SQLAdminAcct": {
+              "UserName": "[parameters('SQLAdmin')]",
+              "Password": "PrivateSettingsRef:SQLAdminPWD"
+            },
+            "setSQLServiceAccount": "[parameters('setSQLServiceAccount')]",
+            "scriptFolderUrl": "[concat(parameters('armTemplateURI'), variables('scriptsTemplatePath'))]",
+            "sastoken": "[trim(parameters('armTemplatesSasToken'))]"
+          }
+        },
+        "protectedSettings": {
+          "Items": {
+            "SQLSvcAcctPWD": "[parameters('SQLServerPassword')]",
+            "SQLAgentPWD": "[parameters('SQLAgentPassword')]",
+            "SQLAdminPWD": "[parameters('SQLAdminPwd')]"
+          }
+        }
+      }
+    }
+  ]
+}

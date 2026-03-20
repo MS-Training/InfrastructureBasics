@@ -1,0 +1,18 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "vmName": {
+      "type": "string"
+    }
+  },
+  "variables": {
+  },
+  "resources": [
+    {
+      "apiVersion": "2015-06-01-preview",
+      "type": "Microsoft.Compute/virtualMachines/providers/serverVulnerabilityAssessments",
+      "name": "[concat(parameters('vmName'), '/Microsoft.Security/default')]"
+    }
+  ]
+}

@@ -1,0 +1,247 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "settings": {
+      "type": "secureObject",
+      "metadata": {
+        "description": "This is coming from the parameter File under Parameters"
+      }
+    },
+    "resourceNames": {
+      "type": "Object",
+      "metadata": {
+        "description": "This is coming from the parameter File under Parameters"
+      }
+    }
+  },
+  "variables": {
+    "virtualNetworkId": "[concat('/subscriptions/',subscription().subscriptionId,'/resourceGroups/',parameters('settings').cacheServices.redis.vnetResourceGroupName,'/providers/Microsoft.Network/virtualnetworks/',parameters('settings').cacheServices.redis.virtualNetworkName)]",
+    "virtualNetworkSubnetName": "Subnet-1",
+    "redisNICName": "[concat(parameters('resourceNames').redisCacheName,'nic1')]",
+    "serviceGroupNames": [
+      "redisCache"
+    ],
+    "firewallConfiguration": {
+      "dev": {
+        "ipRanges": [
+          {
+            "ruleName": "deveus",
+            "ipRange": {
+              "startIP": "48.211.56.64",
+              "endIP": "48.211.56.80"
+            }
+          }
+        ]
+      },
+      "tst": {
+        "ipRanges": [
+          {
+            "ruleName": "tsteus",
+            "ipRange": {
+              "startIP": "48.211.56.80",
+              "endIP": "48.211.56.96"
+            }
+          },
+          {
+            "ruleName": "tstscus",
+            "ipRange": {
+              "startIP": "72.147.144.64",
+              "endIP": "72.147.144.80"
+            }
+          }
+        ]
+      },
+      "prd": {
+        "ipRanges": [
+          {
+            "ruleName": "prdweus",
+            "ipRange": {
+              "startIP": "48.209.103.192",
+              "endIP": "48.209.103.208"
+            }
+          },
+          {
+            "ruleName": "prdscus",
+            "ipRange": {
+              "startIP": "72.147.144.128",
+              "endIP": "72.147.144.144"
+            }
+          }
+        ]
+      },
+      "nothing": [ {} ]
+    }
+  },
+  "resources": [
+    {
+      "name": "createRedisCache",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').CacheServicesResourceGroupName]",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'RedisCache-template-redis', '/versions/v1')]"
+        },
+        "parameters": {
+          "redisCacheName": {
+            "value": "[parameters('resourceNames').redisCacheName]"
+          },
+          "resourceNames": {
+            "value": "[parameters('resourceNames')]"
+          },
+          "location": {
+            "value": "[parameters('settings').common.region]"
+          },
+          "redisVersion": {
+            "value": "[parameters('settings').cacheServices.redis.version]"
+          },
+          "skuCapacity": {
+            "value": "[parameters('settings').cacheServices.redis.skuCapacity]"
+          },
+          "skuFamily": {
+            "value": "[parameters('settings').cacheServices.redis.skuFamily]"
+          },
+          "skuName": {
+            "value": "[parameters('settings').cacheServices.redis.skuName]"
+          },
+          "publicNetworkAccess": {
+            "value": "[if(parameters('settings').cacheServices.redis.enablePrivateEndPoint,'Disabled','Enabled')]"
+          },
+          "workspaceId": {
+            "value": "[parameters('resourceNames').workspaceId]"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[parameters('settings').cacheServices.redis.enablePrivateEndPoint]",
+      "name": "createRedisPrivateEndPoint",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').CacheServicesResourceGroupName]",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+        "createRedisCache"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'Network-template-network-privateEndPoint', '/versions/v1')]"
+        },
+        "parameters": {
+          "privateEndpointName": {
+            "value": "[concat(parameters('resourceNames').redisCacheName,'pvtep')]"
+          },
+          "customNetworkInterfaceName": {
+            "value": "[variables('redisNICName')]"
+          },
+          "location": {
+            "value": "[parameters('settings').common.region]"
+          },
+          "privateLinkServiceId": {
+            "value": "[reference('createRedisCache').outputs.redisResourceId.value]"
+          },
+          "virtualNetworkId": {
+            "value": "[variables('virtualNetworkId')]"
+          },
+          "virtualNetworkSubnetName": {
+            "value": "[variables('virtualNetworkSubnetName')]"
+          },
+          "serviceGroupNames": {
+            "value": "[variables('serviceGroupNames')]"
+          }
+        }
+      }
+    },
+    {
+      "condition": "[parameters('settings').cacheServices.redis.enablePrivateEndPoint]",
+      "name": "setStaticIPAddress",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').CacheServicesResourceGroupName]",
+      "apiVersion": "2020-06-01",
+      "dependsOn": [
+        "createRedisPrivateEndPoint"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'Network-template-network-privateEndPoint-staticIP', '/versions/v1')]"
+        },
+        "parameters": {
+          "privateEndpointName": {
+            "value": "[concat(parameters('resourceNames').redisCacheName,'pvtep')]"
+          },
+          "customNetworkInterfaceName": {
+            "value": "[variables('redisNICName')]"
+          },
+          "location": {
+            "value": "[parameters('settings').common.region]"
+          },
+          "privateLinkServiceId": {
+            "value": "[reference('createRedisCache').outputs.redisResourceId.value]"
+          },
+          "virtualNetworkId": {
+            "value": "[variables('virtualNetworkId')]"
+          },
+          "virtualNetworkSubnetName": {
+            "value": "[variables('virtualNetworkSubnetName')]"
+          },
+          "serviceGroupNames": {
+            "value": "[variables('serviceGroupNames')]"
+          },
+          "ipConfigurations": {
+            "value": [
+              {
+                "name": "ipconfig1",
+                "properties": {
+                  "memberName": "redisCache",
+                  "groupId": "redisCache",
+                  "privateIPAddress": "[reference('createRedisPrivateEndPoint').outputs.privateEndPointIpConfiguration.value[0].properties.privateIPAddress]"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "[concat('createRedisFirewallRule-',copyindex(1))]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').CacheServicesResourceGroupName]",
+      "apiVersion": "2020-06-01",
+      "copy": {
+        "name": "createRedisFirewallRulesLoop",
+        "count": "[if(contains(tolower(parameters('resourceNames').environment),'dev'),length(variables('firewallConfiguration').dev.ipRanges),
+                       if(contains(tolower(parameters('resourceNames').environment),'ppe'),length(variables('firewallConfiguration').tst.ipRanges),
+                       if(contains(tolower(parameters('resourceNames').environment),'prd'),length(variables('firewallConfiguration').prd.ipRanges),variables('firewallConfiguration').nothing)))]"
+      },
+      "dependsOn": [
+        "setStaticIPAddress"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'RedisCache-template-redis-firewallRules', '/versions/v1')]"
+        },
+        "parameters": {
+          "redisCacheName": {
+            "value": "[parameters('resourceNames').redisCacheName]"
+          },
+          "firewallRuleName": {
+            "value": "[if(contains(tolower(parameters('resourceNames').environment),'dev'),variables('firewallConfiguration').dev.ipRanges[copyIndex('createRedisFirewallRulesLoop')].ruleName,
+                          if(contains(tolower(parameters('resourceNames').environment),'ppe'),variables('firewallConfiguration').tst.ipRanges[copyIndex('createRedisFirewallRulesLoop')].ruleName,
+                          if(contains(tolower(parameters('resourceNames').environment),'prd'),variables('firewallConfiguration').prd.ipRanges[copyIndex('createRedisFirewallRulesLoop')].ruleName,'Nothing')))]"
+          },
+          "ipRangeDetails": {
+            "value": "[if(contains(tolower(parameters('resourceNames').environment),'dev'),variables('firewallConfiguration').dev.ipRanges[copyIndex('createRedisFirewallRulesLoop')].ipRange,
+                          if(contains(tolower(parameters('resourceNames').environment),'ppe'),variables('firewallConfiguration').tst.ipRanges[copyIndex('createRedisFirewallRulesLoop')].ipRange,
+                          if(contains(tolower(parameters('resourceNames').environment),'prd'),variables('firewallConfiguration').prd.ipRanges[copyIndex('createRedisFirewallRulesLoop')].ipRange,variables('firewallConfiguration').nothing)))]"
+          }
+        }
+      }
+    }
+  ]
+}

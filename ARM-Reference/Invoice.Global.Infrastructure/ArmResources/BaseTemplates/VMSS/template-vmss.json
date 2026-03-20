@@ -1,0 +1,482 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "scaleSetName": {
+      "type": "string",
+      "defaultValue": "Cluster",
+      "metadata": {
+        "description": "Name of your cluster - Between 3 and 23 characters. Letters and numbers only"
+      }
+    },
+    "scaleSetRegion": {
+      "minLength": 3,
+      "type": "String",
+      "defaultValue": "[resourceGroup().location]",
+      "allowedValues": [
+        "[resourceGroup().location]",
+        "eastus",
+        "eastus2",
+        "centralus",
+        "northcentralus",
+        "southcentralus",
+        "southeastasia",
+        "westcentralus",
+        "westeurope",
+        "northeurope",
+        "westus",
+        "westus2"
+      ],
+      "metadata": {
+        "description": ""
+      }
+    },
+    "localAdminUserName": {
+      "type": "string",
+      "defaultValue": "ITSVC0",
+      "metadata": {
+        "description": "Remote desktop user Id"
+      }
+    },
+    "localAdminPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Remote desktop user password. Must be a strong password"
+      }
+    },
+    "diagnosticsStorageAccountName": {
+      "type": "string",
+      "metadata": {
+        "description": "diagnosticsStorageAccountName"
+      }
+    },
+    "diagnosticsResourceGroupName": {
+      "type": "string",
+      "metadata": {
+        "description": "Log Analytics Resource Group Name"
+      }
+    },
+    "workspaceName": {
+      "type": "string",
+      "metadata": {
+        "description": "Log Analytics workspace name"
+      }
+    },
+    "workspaceResourceGroupName": {
+      "type": "string",
+      "metadata": {
+        "description": "Log Analytics Resource Group Name"
+      }
+    },
+    "userAssignedIdentityResourceId": {
+      "type": "string",
+      "minLength": 3,
+      "metadata": {
+        "description": "The resource id of a user assigned managed Identity"
+      }
+    },
+    "configureTLSFileUri": {
+      "type": "securestring",
+      "metadata": {
+        "description": "the url with sas token to access the custom script that configures TLS ConfigureTLS.ps1 "
+      }
+    },
+    "vmImagePublisher": {
+      "type": "string",
+      "defaultValue": "MicrosoftWindowsServer",
+      "metadata": {
+        "description": "VM image Publisher"
+      }
+    },
+    "vmImageOffer": {
+      "type": "string",
+      "defaultValue": "WindowsServer",
+      "metadata": {
+        "description": "VM image offer"
+      }
+    },
+    "vmImageSku": {
+      "type": "string",
+      "defaultValue": "2022-Datacenter",
+      "metadata": {
+        "description": "VM image SKU"
+      }
+    },
+    "vmImageVersion": {
+      "type": "string",
+      "defaultValue": "latest",
+      "metadata": {
+        "description": "VM image version"
+      }
+    },
+    "storageAccountType": {
+      "type": "string",
+      "allowedValues": [
+        "Standard_LRS",
+        "Standard_GRS"
+      ],
+      "defaultValue": "Standard_LRS",
+      "metadata": {
+        "description": "Replication option for the VM image storage account"
+      }
+    },
+    "enableAutomaticOSUpgrade": {
+      "type": "bool",
+      "defaultValue": true
+    },
+    "numberOfInstances": {
+      "type": "int",
+      "defaultValue": 3,
+      "metadata": {
+        "description": "Instance count for node type"
+      }
+    },
+    "vmSize": {
+      "type": "string",
+      "defaultValue": "Standard_D2_v3"
+    },
+    "virtualNetwork": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Name for the VirtualNetwork"
+      }
+    },
+    "vnetResourceGroup": {
+      "type": "string",
+      "defaultValue": "ERNetwork-DB",
+      "metadata": {
+        "description": "Name for the Resource Group that contains VirtualNetwork"
+      }
+    },
+    "subnetName": {
+      "type": "string",
+      "defaultValue": "Subnet1",
+      "metadata": {
+        "description": "Name for the subnet"
+      }
+    },
+    "managementIpName": {
+      "type": "string"
+    }
+  },
+  "variables": {
+    "lblName": "[tolower(concat(parameters('scaleSetName'),'lbl'))]",
+    "nicName": "[tolower(concat(parameters('scaleSetName'),'nic'))]",
+    "managementIpName": "[tolower(concat(parameters('managementIpName'),'mgmt'))]",
+    "overProvision": false,
+    "vnetSubscriptionid": "[subscription().subscriptionId]",
+    "vnetID": "[concat('/subscriptions/',variables('vnetSubscriptionid'),'/resourceGroups/',parameters('vnetResourceGroup'),'/providers/Microsoft.Network/virtualnetworks/',parameters('virtualNetwork'))]",
+    "subnetName": "[parameters('subnetName')]",
+    "subnetRef": "[concat(variables('vnetId'), '/subnets/', variables('subnetName'))]",
+    "lblresourceId": "[resourceId('Microsoft.Network/loadBalancers',variables('lblName'))]",
+    "lblFrondEndIPConfig": "[concat(variables('lblresourceId'),'/frontendIPConfigurations/',variables('managementIpName'))]",
+    "lblBackEndPoolId": "[concat(variables('lblresourceId'),'/backendAddressPools/',parameters('scaleSetName'),'Nodes')]",
+    "lblRemoteDesktopNatRule": "[concat(variables('lblresourceId'),'/inboundNatPools/RemoteDesktopRule')]",
+    "powershellFileExecution": "powershell.exe -ExecutionPolicy Unrestricted -File ./Scripts/"
+  },
+  "resources": [
+    {
+      "apiVersion": "2020-11-01",
+      "type": "Microsoft.Network/publicIPAddresses",
+      "name": "[variables('managementIpName')]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "dnsSettings": {
+          "domainNameLabel": "[tolower(parameters('scaleSetName'))]"
+        },
+        "publicIPAllocationMethod": "Dynamic"
+      },
+      "tags": {
+      }
+    },
+    {
+      "apiVersion": "2017-08-01",
+      "type": "Microsoft.Network/loadBalancers",
+      "name": "[variables('lblName')]",
+      "location": "[parameters('scaleSetRegion')]",
+      "dependsOn": [
+        "[concat('Microsoft.Network/publicIPAddresses/',variables('managementIpName'))]"
+      ],
+      "properties": {
+        "frontendIPConfigurations": [
+          {
+            "name": "[variables('managementIpName')]",
+            "properties": {
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses',variables('managementIpName'))]"
+              }
+            }
+          }
+        ],
+        "backendAddressPools": [
+          {
+            "name": "[concat(parameters('scaleSetName'),'Nodes')]"
+          }
+        ],
+        "loadBalancingRules": [],
+        "probes": [],
+        "inboundNatPools": [
+          {
+            "name": "RemoteDesktopRule",
+            "properties": {
+              "backendPort": 3389,
+              "frontendIPConfiguration": {
+                "id": "[variables('lblFrondEndIPConfig')]"
+              },
+              "frontendPortRangeEnd": 4500,
+              "frontendPortRangeStart": 3389,
+              "protocol": "tcp"
+            }
+          }
+        ]
+      },
+      "tags": {}
+    },
+    {
+      "apiVersion": "2021-11-01",
+      "type": "Microsoft.Compute/virtualMachineScaleSets",
+      "name": "[parameters('scaleSetName')]",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[concat('Microsoft.Network/loadBalancers/', variables('lblName'))]"
+      ],
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[parameters('userAssignedIdentityResourceId')]": {}
+        }
+      },
+      "properties": {
+        "overprovision": "[variables('overProvision')]",
+        "upgradePolicy": {
+          "automaticOSUpgradePolicy": {
+            "enableAutomaticOSUpgrade": "[parameters('enableAutomaticOSUpgrade')]"
+          },
+          "mode": "Automatic"
+        },
+        "virtualMachineProfile": {
+          "extensionProfile": {
+            "extensions": [
+              {
+                "name": "GenevaMonitoring",
+                "properties": {
+                  "publisher": "Microsoft.Azure.Geneva",
+                  "type": "GenevaMonitoring",
+                  "typeHandlerVersion": "2.0",
+                  "enableAutomaticUpgrade": true,
+                  "autoUpgradeMinorVersion": true,
+                  "protectedSettings": {},
+                  "settings": {}
+                }
+              },
+              {
+                "name": "IaaSDiagnostics",
+                "properties": {
+                  "type": "IaaSDiagnostics",
+                  "autoUpgradeMinorVersion": true,
+                  "protectedSettings": {
+                    "storageAccountName": "[parameters('diagnosticsStorageAccountName')]",
+                    "storageAccountKey": "[listKeys(resourceId(parameters('diagnosticsResourceGroupName'),'Microsoft.Storage/storageAccounts', parameters('diagnosticsStorageAccountName')),'2019-04-01').keys[0].value]",
+                    "storageAccountEndPoint": "https://core.windows.net/"
+                  },
+                  "publisher": "Microsoft.Azure.Diagnostics",
+                  "settings": {
+                    "WadCfg": {
+                      "DiagnosticMonitorConfiguration": {
+                        "overallQuotaInMB": "50000",
+                        "EtwProviders": {
+                          "EtwEventSourceProviderConfiguration": [
+                            {
+                              "provider": "Microsoft-ServiceFabric-Actors",
+                              "scheduledTransferKeywordFilter": "1",
+                              "scheduledTransferPeriod": "PT5M",
+                              "DefaultEvents": {
+                                "eventDestination": "ServiceFabricReliableActorEventTable"
+                              }
+                            },
+                            {
+                              "provider": "Microsoft-ServiceFabric-Services",
+                              "scheduledTransferPeriod": "PT5M",
+                              "DefaultEvents": {
+                                "eventDestination": "ServiceFabricReliableServiceEventTable"
+                              }
+                            }
+                          ],
+                          "EtwManifestProviderConfiguration": [
+                            {
+                              "provider": "cbd93bc2-71e5-4566-b3a7-595d8eeca6e8",
+                              "scheduledTransferLogLevelFilter": "Information",
+                              "scheduledTransferKeywordFilter": "4611686018427387904",
+                              "scheduledTransferPeriod": "PT5M",
+                              "DefaultEvents": {
+                                "eventDestination": "ServiceFabricSystemEventTable"
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "StorageAccount": "[parameters('diagnosticsStorageAccountName')]"
+                  },
+                  "typeHandlerVersion": "1.5",
+                  "provisionAfterExtensions": [
+                    "GenevaMonitoring"
+                  ]
+                }
+              },
+              {
+                "name": "LogAnalytics",
+                "properties": {
+                  "publisher": "Microsoft.EnterpriseCloud.Monitoring",
+                  "type": "MicrosoftMonitoringAgent",
+                  "typeHandlerVersion": "1.0",
+                  "autoUpgradeMinorVersion": true,
+                  "settings": {
+                    "workspaceId": "[reference(resourceId(parameters('workspaceResourceGroupName'), 'Microsoft.OperationalInsights/workspaces/', parameters('workspaceName')), '2015-03-20').customerId]"
+                  },
+                  "protectedSettings": {
+                    "workspaceKey": "[listKeys(resourceId(parameters('workspaceResourceGroupName'), 'Microsoft.OperationalInsights/workspaces/', parameters('workspaceName')), '2015-03-20').primarySharedKey]"
+                  },
+                  "provisionAfterExtensions": [
+                    "IaaSDiagnostics"
+                  ]
+                }
+              },
+              {
+                "name": "CustomScriptExtension",
+                "properties": {
+                  "publisher": "Microsoft.Compute",
+                  "type": "CustomScriptExtension",
+                  "typeHandlerVersion": "1.10",
+                  "autoUpgradeMinorVersion": true,
+                  "settings": {
+                    "fileUris": [
+                      "[parameters('configureTLSFileUri')]"
+                    ]
+                  },
+                  "protectedSettings": {
+                    "commandToExecute": "[concat(variables('powershellFileExecution'), 'ConfigureTLS.ps1')]"
+                  },
+                  "provisionAfterExtensions": [
+                    "LogAnalytics"
+                  ]
+                }
+              },
+              {
+                "name": "HealthExtension",
+                "properties": {
+                  "publisher": "Microsoft.ManagedServices",
+                  "type": "ApplicationHealthWindows",
+                  "autoUpgradeMinorVersion": true,
+                  "typeHandlerVersion": "1.0",
+                  "settings": {
+                    "protocol": "http",
+                    "port": 80,
+                    "requestPath": "/healthEndpoint"
+                  },
+                  "provisionAfterExtensions": [
+                    "CustomScriptExtension"
+                  ]
+                }
+              }
+            ]
+          },
+          "networkProfile": {
+            "networkInterfaceConfigurations": [
+              {
+                "name": "[concat(variables('nicName'), '-0')]",
+                "properties": {
+                  "ipConfigurations": [
+                    {
+                      "name": "[concat(variables('nicName'),'-',0)]",
+                      "properties": {
+                        "loadBalancerBackendAddressPools": [
+                          {
+                            "id": "[variables('lblBackEndPoolId')]"
+                          }
+                        ],
+                        "loadBalancerInboundNatPools": [
+                          {
+                            "id": "[variables('lblRemoteDesktopNatRule')]"
+                          }
+                        ],
+                        "subnet": {
+                          "id": "[variables('subnetRef')]"
+                        }
+                      }
+                    }
+                  ],
+                  "primary": true
+                }
+              }
+            ]
+          },
+          "osProfile": {
+            "adminPassword": "[parameters('localAdminPassword')]",
+            "adminUsername": "[parameters('localAdminUsername')]",
+            "computernamePrefix": "[parameters('scaleSetName')]",
+            "windowsConfiguration": {
+              "enableAutomaticUpdates": false
+            }
+          },
+          "storageProfile": {
+            "imageReference": {
+              "publisher": "[parameters('vmImagePublisher')]",
+              "offer": "[parameters('vmImageOffer')]",
+              "sku": "[parameters('vmImageSku')]",
+              "version": "[parameters('vmImageVersion')]"
+            },
+            "osDisk": {
+              "caching": "ReadWrite",
+              "createOption": "FromImage",
+              "managedDisk": {
+                "storageAccountType": "[parameters('StorageAccountType')]"
+              }
+            }
+          }
+        }
+      },
+      "sku": {
+        "name": "[parameters('vmSize')]",
+        "capacity": "[parameters('numberOfInstances')]",
+        "tier": "Standard"
+      },
+      "tags": {
+        "azsecpack": "prod",
+        "azcertinstaller_msinternalcertstore": "true"
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deploymentScripts",
+      "apiVersion": "2020-10-01",
+      "name": "reRunAzCertInstaller",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Compute/virtualMachineScaleSets', parameters('scaleSetName'))]"
+      ],
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[parameters('userAssignedIdentityResourceId')]": {}
+        }
+      },
+      "kind": "AzurePowerShell",
+      "properties": {
+        "azPowerShellVersion": "14.0",
+        "timeout": "PT30M",
+        "cleanupPreference": "Always",
+        "retentionInterval": "P1D",
+        "forceUpdateTag": "reRunAzCertInstaller",
+        "arguments": "[format ('-resourceGroupName \"{0}\"', resourceGroup().name)]",
+        "scriptContent": "param($resourceGroupName) $vmssList = Get-AzVmss -ResourceGroupName $resourceGroupName; foreach ($vmss in $vmssList) { Write-Host 'Processing VMSS: $($vmss.Name)'; $vmssName = $vmss.Name; $instances = Get-AzVmssVM -ResourceGroupName $resourceGroupName -VMScaleSetName $vmssName; foreach ($instance in $instances) { Write-Host 'Processing Instance: $($instance.InstanceId)'; if ($vmss.Tags.ContainsKey('azcertinstaller_msinternalcertstore')) { $vmId = $instance.InstanceId; Invoke-AzVmssVMRunCommand -ResourceGroupName $resourceGroupName -VMScaleSetName $vmssName -InstanceId $vmId -CommandId 'RunPowerShellScript' -ScriptString 'C:\\Windows\\System32\\config\\systemprofile\\AppData\\Local\\AzureSecurityPack\\AzCertInstaller.cmd'; }}}"
+      }
+    }
+  ],
+  "outputs": {
+    "managementIpFQDN": {
+      "value": "[reference(variables('managementIpName')).dnsSettings.fqdn]",
+      "type": "string"
+    }
+  }
+}

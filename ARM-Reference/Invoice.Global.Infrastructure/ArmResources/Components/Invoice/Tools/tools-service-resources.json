@@ -1,0 +1,175 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "settings": {
+      "type": "secureObject",
+      "metadata": {
+        "description": "This is coming from the parameter File under Parameters"
+      }
+    },
+    "resourceNames": {
+      "type": "object",
+      "metadata": {
+        "description": "This is coming from the parameter File under Parameters"
+      }
+    },
+    "storageConnectionString": {
+      "type": "securestring"
+    },
+    "appInsightsInstrumentationKey": {
+      "type": "securestring"
+    },
+    "date": {
+      "type": "string",
+      "defaultValue": "[utcNow()]"
+    }
+  },
+  "variables": {
+    "commonKeyvaultName": "[tolower(concat(parameters('resourceNames').keyVaultBaseName,parameters('settings').common.tag))]",
+    "commonKeyvaultSecrets_uri": "[concat('@Microsoft.KeyVault(SecretUri=https://', variables('commonKeyvaultName'), '.vault.azure.net/secrets')]",
+    "functionAppName": "[concat(parameters('resourceNames').functionAppBaseName,parameters('settings').tools.tag)]",
+    "functionIdentities": {
+      "type": "SystemAssigned, UserAssigned",
+      "userAssignedIdentities": {
+        "[parameters('resourceNames').commonManagedIdentityResourceId]": {}
+      }
+    },
+    "functionSettings": {
+      "settings": [
+        {
+          "name": "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING",
+          "value": "[if(parameters('settings').tools.isFirstDeployment, parameters('storageConnectionString'), concat(variables('commonKeyvaultSecrets_uri'), '/kv-', parameters('resourceNames').functionsStorageAccountName, '-ConnectionString', '/)'))]"
+        },
+        {
+          "name": "WEBSITE_RUN_FROM_PACKAGE",
+          "value": "1"
+        },
+        {
+          "name": "AzureWebJobsDashboard",
+          "value": "[if(parameters('settings').tools.isFirstDeployment, parameters('storageConnectionString'), concat(variables('commonKeyvaultSecrets_uri'), '/kv-', parameters('resourceNames').functionsStorageAccountName, '-ConnectionString', '/)'))]"
+        },
+        {
+          "name": "AzureWebJobsStorage",
+          "value": "[if(parameters('settings').tools.isFirstDeployment, parameters('storageConnectionString'), concat(variables('commonKeyvaultSecrets_uri'), '/kv-', parameters('resourceNames').functionsStorageAccountName, '-ConnectionString', '/)'))]"
+        },
+        {
+          "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+          "value": "[parameters('appInsightsInstrumentationKey')]"
+        },
+        {
+          "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+          "value": "[concat('InstrumentationKey=', parameters('appInsightsInstrumentationKey'))]"
+        },
+        {
+          "name": "ApplicationInsightsAgent_EXTENSION_VERSION",
+          "value": "~2"
+        },
+        {
+          "name": "WEBSITE_CONTENTSHARE",
+          "value": "[toLower(variables('functionAppName'))]"
+        },
+        {
+          "name": "FUNCTIONS_EXTENSION_VERSION",
+          "value": "~4"
+        },
+        {
+          "name": "WEBSITE_NODE_DEFAULT_VERSION",
+          "value": "8.11.1"
+        },
+        {
+          "name": "WEBSITE_LOAD_CERTIFICATES",
+          "value": "*"
+        },
+        {
+          "name": "WEBSITE_CONTENTOVERVNET",
+          "value": "1"
+        },
+        {
+          "name": "FUNCTIONS_WORKER_RUNTIME",
+          "value": "dotnet-isolated"
+        },
+        {
+          "name": "AZURE_FUNCTIONS_ENVIRONMENT",
+          "value": "[toUpper(parameters('resourceNames').environment)]"
+        },
+        {
+          "name": "Environment",
+          "value": "[parameters('resourceNames').environment]"
+        }
+      ]
+    }
+  },
+  "resources": [
+    {
+      "name": "[concat('createFunctionApp-', parameters('date'))]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').toolsResourceGroupName]",
+      "apiVersion": "2022-09-01",
+      "dependsOn": [],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'template-function-network-integrated', '/versions/v1')]"
+        },
+        "parameters": {
+          "dotnetFrameworkVersion": {
+            "value": "[parameters('settings').tools.functionSettings.dotnetFrameworkVersion]"
+          },
+          "functionIdentities": {
+            "value": "[variables('functionIdentities')]"
+          },
+          "templatespecsBaseResourceId": {
+            "value": "[parameters('resourceNames').templatespecsBaseResourceId]"
+          },
+          "location": {
+            "value": "[parameters('settings').common.region]"
+          },
+          "functionAppName": {
+            "value": "[variables('functionAppName')]"
+          },
+          "functionDelagatedSubnetName": {
+            "value": "[parameters('settings').commonNetwork.subnets[1].subnetName]"
+          },
+          "functionPrivateEndpointSubnetName": {
+            "value": "[parameters('settings').commonNetwork.subnets[2].subnetName]"
+          },
+          "functionSettings": {
+            "value": "[variables('functionSettings')]"
+          },
+          "hostingPlanResourceId": {
+            "value": "[parameters('resourceNames').functionsHostingPlanResourceId]"
+          },
+          "componentTag": {
+            "value": "[parameters('settings').tools.tag]"
+          },
+          "componentResourceGroupName": {
+            "value": "[parameters('resourceNames').toolsResourceGroupName]"
+          },
+          "commonResourceGroupName": {
+            "value": "[parameters('resourceNames').commonResourceGroupName]"
+          },
+          "networkResourceGroupName": {
+            "value": "[parameters('resourceNames').commonNetworkResourceGroupName]"
+          },
+          "commonVirtualNetworkResourceId": {
+            "value": "[parameters('resourceNames').commonVirtualNetworkResourceId]"
+          },
+          "commonKeyvaultName": {
+            "value": "[variables('commonKeyvaultName')]"
+          },
+          "commonWorkSpaceResourceId": {
+            "value": "[parameters('resourceNames').commonWorkSpaceResourceId]"
+          },
+          "publicNetworkAccess": {
+            "value": "[parameters('settings').common.publicNetworkAccess]"
+          },
+          "roleDefinitionObjectId": {
+            "value": "[parameters('settings').secretManager.keyvaultSecretUserRoleDefinitionObjectId]"
+          }
+        }
+      }
+    }
+  ],
+  "outputs": {}
+}

@@ -1,0 +1,113 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "resourceNames": {
+      "type": "Object",
+      "metadata": {
+        "description": "This is coming from the parameter File under Parameters"
+      }
+    },
+    "date": {
+      "type": "string",
+      "defaultValue": "[utcNow()]"
+    }
+  },
+  "variables": {
+    "README": "This file is meant to be use for one time deployments. You will create the ARM template here and after successfully completing this execution you can remove everything from variables section and the resources"
+  },
+  "resources": [
+    {
+      "condition": "[equals(toupper(parameters('resourceNames').environment),'PPE')]",
+      "name": "[concat('addCapToolPerm-1', parameters('date'))]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonResourceGroupName]",
+      "apiVersion": "2022-09-01",
+      "dependsOn": [
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'factory-resource-permissions', '/versions/v1')]"
+        },
+        "parameters": { 
+          "templatespecsBaseResourceId": {
+            "value": "[parameters('resourceNames').templatespecsBaseResourceId]"
+          },
+          "permissionDetails": {
+            "value": [
+              {
+                "resourceGroupName": "Rg-630-ModernInvoice-Common-Prod",
+                "resourceIdToAddAccessTo": "/subscriptions/b7aae6f6-87ad-47ce-89ce-26e158fb74a4/resourceGroups/Rg-630-ModernInvoice-Common-Prod/providers/Microsoft.KeyVault/vaults/InvCommonProdWUS2KV",
+                "ObjectIdToGrantAccess": "f5cb678d-29cc-422e-b4a8-480cba4f8077",
+                "roleDefinitionObjectId": "4633458b-17de-408a-b874-0445c86b69e6"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "condition": "[equals(toupper(parameters('resourceNames').environment),'PRD')]",
+      "name": "[concat('addCapToolPerm-2', parameters('date'))]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonResourceGroupName]",
+      "apiVersion": "2022-09-01",
+      "dependsOn": [
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'factory-resource-permissions', '/versions/v1')]"
+        },
+        "parameters": { 
+          "templatespecsBaseResourceId": {
+            "value": "[parameters('resourceNames').templatespecsBaseResourceId]"
+          },
+          "permissionDetails": {
+            "value": [
+              {
+                "resourceGroupName": "RG-630-INVR-PRD-COMMON-CLASSIC",
+                "resourceIdToAddAccessTo": "/subscriptions/87a507d4-2e71-4b6f-8f57-c06d22641d33/resourceGroups/RG-630-INVR-PRD-COMMON-CLASSIC/providers/Microsoft.KeyVault/vaults/invrprdappkvclassic",
+                "ObjectIdToGrantAccess": "f5cb678d-29cc-422e-b4a8-480cba4f8077",
+                "roleDefinitionObjectId": "4633458b-17de-408a-b874-0445c86b69e6"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "condition": "[equals(toupper(parameters('resourceNames').environment),'PRD')]",
+      "name": "[concat('addCapToolPerm-3', parameters('date'))]",
+      "type": "Microsoft.Resources/deployments",
+      "resourceGroup": "[parameters('resourceNames').commonResourceGroupName]",
+      "apiVersion": "2022-09-01",
+      "dependsOn": [
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "id": "[concat(parameters('resourceNames').templatespecsBaseResourceId, 'factory-resource-permissions', '/versions/v1')]"
+        },
+        "parameters": { 
+          "templatespecsBaseResourceId": {
+            "value": "[parameters('resourceNames').templatespecsBaseResourceId]"
+          },
+          "permissionDetails": {
+            "value": [
+              {
+                "resourceGroupName": "RG-630-INVR-PRD-GLOBAL",
+                "resourceIdToAddAccessTo": "/subscriptions/87a507d4-2e71-4b6f-8f57-c06d22641d33/resourceGroups/RG-630-INVR-PRD-GLOBAL/providers/Microsoft.KeyVault/vaults/invrprdglobalkv",
+                "ObjectIdToGrantAccess": "f5cb678d-29cc-422e-b4a8-480cba4f8077",
+                "roleDefinitionObjectId": "4633458b-17de-408a-b874-0445c86b69e6"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "outputs": {
+  }
+}
